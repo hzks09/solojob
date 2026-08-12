@@ -14,6 +14,7 @@ const LINKS = [
   { href: "/devis", label: "Devis" },
   { href: "/factures", label: "Factures" },
   { href: "/billing", label: "Abonnement" },
+  { href: "/settings", label: "Réglages" },
 ];
 
 export function DashboardNav({ plan }: { plan?: PlanTier }) {
