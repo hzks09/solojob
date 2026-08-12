@@ -1,46 +1,52 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { resetPassword } from "@/lib/auth/actions";
+import { createClient } from "@/lib/supabase/client";
+import { resetPasswordSchema } from "@/lib/validations/auth";
 
 export default function ResetPasswordPage() {
-  return (
-    <Suspense>
-      <ResetPasswordForm />
-    </Suspense>
-  );
-}
-
-function ResetPasswordForm() {
   const router = useRouter();
-  const token = useSearchParams().get("token") ?? "";
   const [loading, setLoading] = useState(false);
+  const [hasSession, setHasSession] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data }) => setHasSession(!!data.session));
+  }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setLoading(true);
     const form = new FormData(e.currentTarget);
-    const result = await resetPassword({ token, password: String(form.get("password") ?? "") });
+
+    const parsed = resetPasswordSchema.safeParse({ password: form.get("password") });
+    if (!parsed.success) {
+      toast.error(parsed.error.issues[0]?.message ?? "Formulaire invalide");
+      return;
+    }
+
+    setLoading(true);
+    const supabase = createClient();
+    const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
     setLoading(false);
 
-    if (!result.success) {
-      toast.error(result.error);
+    if (error) {
+      toast.error(error.message);
       return;
     }
     toast.success("Mot de passe mis à jour");
-    router.push("/login");
+    router.push("/dashboard");
   }
 
-  if (!token) {
+  if (hasSession === false) {
     return (
-      <AuthShell title="Lien invalide" subtitle="Ce lien de réinitialisation est incomplet">
+      <AuthShell title="Lien invalide ou expiré" subtitle="Redemande un lien de réinitialisation">
         <Link href="/forgot-password" className="text-brand font-medium text-sm">
           Redemander un lien
         </Link>
@@ -55,7 +61,7 @@ function ResetPasswordForm() {
           <Label htmlFor="password">Nouveau mot de passe</Label>
           <Input id="password" name="password" type="password" required placeholder="8 caractères min." />
         </div>
-        <Button type="submit" className="w-full" disabled={loading}>
+        <Button type="submit" className="w-full" disabled={loading || hasSession === null}>
           {loading ? "Mise à jour..." : "Réinitialiser le mot de passe"}
         </Button>
       </form>

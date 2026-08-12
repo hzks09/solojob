@@ -7,7 +7,8 @@ import { AuthShell } from "@/components/auth/auth-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { registerUser } from "@/lib/auth/actions";
+import { createClient } from "@/lib/supabase/client";
+import { registerSchema } from "@/lib/validations/auth";
 
 export default function SignupPage() {
   const [loading, setLoading] = useState(false);
@@ -15,19 +16,32 @@ export default function SignupPage() {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setLoading(true);
     const form = new FormData(e.currentTarget);
 
-    const result = await registerUser({
-      name: String(form.get("name") ?? ""),
-      email: String(form.get("email") ?? ""),
-      password: String(form.get("password") ?? ""),
+    const parsed = registerSchema.safeParse({
+      name: form.get("name"),
+      email: form.get("email"),
+      password: form.get("password"),
     });
+    if (!parsed.success) {
+      toast.error(parsed.error.issues[0]?.message ?? "Formulaire invalide");
+      return;
+    }
 
+    setLoading(true);
+    const supabase = createClient();
+    const { error } = await supabase.auth.signUp({
+      email: parsed.data.email,
+      password: parsed.data.password,
+      options: {
+        data: { full_name: parsed.data.name },
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
     setLoading(false);
 
-    if (!result.success) {
-      toast.error(result.error);
+    if (error) {
+      toast.error(error.message === "User already registered" ? "Un compte existe déjà avec cet e-mail" : error.message);
       return;
     }
     setDone(true);
@@ -50,7 +64,7 @@ export default function SignupPage() {
   return (
     <AuthShell
       title="Créer un compte"
-      subtitle="5 générations gratuites pour commencer"
+      subtitle="3 factures gratuites par mois pour commencer"
       footer={
         <>
           Déjà un compte ?{" "}

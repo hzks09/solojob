@@ -7,7 +7,8 @@ import { AuthShell } from "@/components/auth/auth-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { requestPasswordReset } from "@/lib/auth/actions";
+import { createClient } from "@/lib/supabase/client";
+import { forgotPasswordSchema } from "@/lib/validations/auth";
 
 export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
@@ -15,15 +16,21 @@ export default function ForgotPasswordPage() {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setLoading(true);
     const form = new FormData(e.currentTarget);
-    const result = await requestPasswordReset({ email: String(form.get("email") ?? "") });
-    setLoading(false);
 
-    if (!result.success) {
-      toast.error(result.error);
+    const parsed = forgotPasswordSchema.safeParse({ email: form.get("email") });
+    if (!parsed.success) {
+      toast.error(parsed.error.issues[0]?.message ?? "Formulaire invalide");
       return;
     }
+
+    setLoading(true);
+    const supabase = createClient();
+    await supabase.auth.resetPasswordForEmail(parsed.data.email, {
+      redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+    });
+    setLoading(false);
+    // Toujours succès côté UI (anti-énumération) — Supabase ne révèle pas si l'email existe.
     setSent(true);
   }
 

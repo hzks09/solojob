@@ -3,12 +3,13 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { signIn } from "next-auth/react";
 import { toast } from "sonner";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { createClient } from "@/lib/supabase/client";
+import { loginSchema } from "@/lib/validations/auth";
 
 export default function LoginPage() {
   return (
@@ -26,18 +27,23 @@ function LoginForm() {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setLoading(true);
     const form = new FormData(e.currentTarget);
 
-    const res = await signIn("credentials", {
+    const parsed = loginSchema.safeParse({
       email: form.get("email"),
       password: form.get("password"),
-      redirect: false,
     });
+    if (!parsed.success) {
+      toast.error(parsed.error.issues[0]?.message ?? "Formulaire invalide");
+      return;
+    }
 
+    setLoading(true);
+    const supabase = createClient();
+    const { error } = await supabase.auth.signInWithPassword(parsed.data);
     setLoading(false);
 
-    if (res?.error) {
+    if (error) {
       toast.error("E-mail ou mot de passe incorrect");
       return;
     }
@@ -48,7 +54,7 @@ function LoginForm() {
   return (
     <AuthShell
       title="Bon retour"
-      subtitle="Connecte-toi pour continuer à transformer tes pièces"
+      subtitle="Connecte-toi pour gérer tes devis et factures"
       footer={
         <>
           Pas encore de compte ?{" "}

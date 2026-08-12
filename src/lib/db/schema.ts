@@ -1,477 +1,228 @@
 /**
- * Schéma Drizzle ORM — source de vérité de la base Neon (Postgres).
- * `npm run db:generate` produit les migrations SQL à partir de ce fichier,
- * `npm run db:migrate` les applique sur la base.
+ * Schéma Drizzle ORM — source de vérité de la base Supabase (Postgres).
+ * `npm run db:generate` produit les migrations SQL à partir de ce fichier.
  *
- * Les tables users/accounts/sessions/verificationTokens suivent la forme
- * attendue par @auth/drizzle-adapter (Auth.js v5). Les tables emailVerificationTokens
- * et passwordResetTokens sont notre propre implémentation (flux credentials).
+ * L'authentification est gérée par Supabase Auth (`auth.users`, hors de ce
+ * schéma). `authUsers` ci-dessous est une déclaration minimale qui permet à
+ * Drizzle de générer la contrainte de clé étrangère `profiles.id -> auth.users.id`.
  */
 
-import {
-  pgTable,
-  pgEnum,
-  text,
-  timestamp,
-  integer,
-  numeric,
-  boolean,
-  jsonb,
-  primaryKey,
-  uniqueIndex,
-  index,
-} from "drizzle-orm/pg-core";
+import { pgTable, pgEnum, pgSchema, text, timestamp, uuid, numeric, integer, date, index } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
-const id = () =>
-  text("id")
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID());
+const authSchema = pgSchema("auth");
+export const authUsers = authSchema.table("users", {
+  id: uuid("id").primaryKey(),
+});
+
+const id = () => uuid("id").primaryKey().defaultRandom();
 
 // -----------------------------------------------------------------------------
 // ENUMS
 // -----------------------------------------------------------------------------
-export const userRoleEnum = pgEnum("user_role", ["user", "admin"]);
-export const planTierEnum = pgEnum("plan_tier", ["free", "pro", "premium"]);
-export const roomTypeEnum = pgEnum("room_type", [
-  "salon",
-  "chambre",
-  "cuisine",
-  "salle_de_bain",
-  "bureau",
-  "jardin",
-]);
-export const budgetModeEnum = pgEnum("budget_mode", [
-  "moins_500",
-  "moins_1000",
-  "moins_3000",
-  "illimite",
-]);
-export const transformationLevelEnum = pgEnum("transformation_level", [
-  "leger",
-  "modere",
-  "complet",
-]);
-export const generationQualityEnum = pgEnum("generation_quality", ["standard", "hd", "ultra_hd"]);
-export const generationStatusEnum = pgEnum("generation_status", [
-  "pending",
-  "processing",
-  "completed",
-  "failed",
-]);
-export const aiProviderEnum = pgEnum("ai_provider", ["replicate", "fal", "openai", "gemini", "mock"]);
-export const subscriptionStatusEnum = pgEnum("subscription_status", [
-  "active",
-  "trialing",
-  "past_due",
-  "canceled",
-  "incomplete",
-]);
-export const paymentStatusEnum = pgEnum("payment_status", [
-  "succeeded",
-  "pending",
-  "failed",
-  "refunded",
-]);
-export const objectCategoryEnum = pgEnum("object_category", [
-  "canape",
-  "lit",
-  "chaise",
-  "table",
-  "tapis",
-  "lampe",
-  "meuble_tv",
-  "decoration",
-  "plantes",
-  "rideaux",
-]);
-export const reportStatusEnum = pgEnum("report_status", [
-  "pending",
-  "reviewed",
-  "dismissed",
-  "actioned",
-]);
-export const creditReasonEnum = pgEnum("credit_reason", [
-  "signup_bonus",
-  "subscription_renewal",
-  "generation_standard",
-  "generation_hd",
-  "generation_ultra_hd",
-  "purchase",
-  "admin_adjustment",
-  "refund",
-]);
+export const planTierEnum = pgEnum("plan_tier", ["free", "solo", "solo_plus"]);
+export const devisStatutEnum = pgEnum("devis_statut", ["brouillon", "envoye", "accepte", "refuse"]);
+export const factureStatutEnum = pgEnum("facture_statut", ["brouillon", "envoyee", "payee"]);
+export const relanceStatutEnum = pgEnum("relance_statut", ["envoyee", "echec"]);
 
 // -----------------------------------------------------------------------------
-// AUTH.JS — users / accounts / sessions / verificationTokens
+// profiles — extension de auth.users (créé par trigger à l'inscription)
 // -----------------------------------------------------------------------------
-export const users = pgTable("users", {
-  id: id(),
-  name: text("name"),
-  email: text("email").notNull().unique(),
-  emailVerified: timestamp("email_verified", { mode: "date" }),
-  image: text("image"),
-  passwordHash: text("password_hash"),
-  role: userRoleEnum("role").notNull().default("user"),
+export const profiles = pgTable("profiles", {
+  id: uuid("id")
+    .primaryKey()
+    .references(() => authUsers.id, { onDelete: "cascade" }),
+  fullName: text("full_name"),
+  companyName: text("company_name"),
+  logoUrl: text("logo_url"),
   plan: planTierEnum("plan").notNull().default("free"),
-  creditsRemaining: integer("credits_remaining").notNull().default(5),
   stripeCustomerId: text("stripe_customer_id").unique(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
-export const accounts = pgTable(
-  "accounts",
-  {
-    userId: text("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    type: text("type").notNull(),
-    provider: text("provider").notNull(),
-    providerAccountId: text("provider_account_id").notNull(),
-    refresh_token: text("refresh_token"),
-    access_token: text("access_token"),
-    expires_at: integer("expires_at"),
-    token_type: text("token_type"),
-    scope: text("scope"),
-    id_token: text("id_token"),
-    session_state: text("session_state"),
-  },
-  (table) => [primaryKey({ columns: [table.provider, table.providerAccountId] })]
-);
-
-export const sessions = pgTable("sessions", {
-  sessionToken: text("session_token").primaryKey(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  expires: timestamp("expires").notNull(),
-});
-
-export const verificationTokens = pgTable(
-  "verification_tokens",
-  {
-    identifier: text("identifier").notNull(),
-    token: text("token").notNull(),
-    expires: timestamp("expires").notNull(),
-  },
-  (table) => [primaryKey({ columns: [table.identifier, table.token] })]
-);
-
-// Flux "vérifier mon e-mail" (lien envoyé via Resend après inscription)
-export const emailVerificationTokens = pgTable("email_verification_tokens", {
-  id: id(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  token: text("token").notNull().unique(),
-  expiresAt: timestamp("expires_at").notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
-
-// Flux "mot de passe oublié"
-export const passwordResetTokens = pgTable("password_reset_tokens", {
-  id: id(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  token: text("token").notNull().unique(),
-  expiresAt: timestamp("expires_at").notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 // -----------------------------------------------------------------------------
-// MÉTIER — projects / generations / detected_objects
+// clients
 // -----------------------------------------------------------------------------
-export const projects = pgTable(
-  "projects",
+export const clients = pgTable(
+  "clients",
   {
     id: id(),
-    userId: text("user_id")
+    userId: uuid("user_id")
       .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    title: text("title").notNull().default("Sans titre"),
-    roomType: roomTypeEnum("room_type").notNull(),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    nom: text("nom").notNull(),
+    email: text("email"),
+    telephone: text("telephone"),
+    adresse: text("adresse"),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index("idx_projects_user_id").on(table.userId)]
+  (table) => [index("idx_clients_user_id").on(table.userId)]
 );
 
-export const generations = pgTable(
-  "generations",
+// -----------------------------------------------------------------------------
+// devis + lignes
+// -----------------------------------------------------------------------------
+export const devis = pgTable(
+  "devis",
   {
     id: id(),
-    projectId: text("project_id")
+    userId: uuid("user_id")
       .notNull()
-      .references(() => projects.id, { onDelete: "cascade" }),
-    userId: text("user_id")
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    clientId: uuid("client_id")
       .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    originalImageUrl: text("original_image_url").notNull(),
-    resultImageUrl: text("result_image_url"),
-    style: text("style").notNull(),
-    budgetMode: budgetModeEnum("budget_mode").notNull().default("illimite"),
-    dominantColors: text("dominant_colors").array().notNull().default([]),
-    furnitureType: text("furniture_type"),
-    materials: text("materials"),
-    ambiance: text("ambiance"),
-    transformationLevel: transformationLevelEnum("transformation_level").notNull().default("modere"),
-    customPrompt: text("custom_prompt"),
-    quality: generationQualityEnum("quality").notNull().default("standard"),
-    creditsUsed: integer("credits_used").notNull().default(1),
-    status: generationStatusEnum("status").notNull().default("pending"),
-    provider: aiProviderEnum("provider").notNull().default("mock"),
-    providerJobId: text("provider_job_id"),
-    errorMessage: text("error_message"),
-    isPublic: boolean("is_public").notNull().default(false),
-    isFavorite: boolean("is_favorite").notNull().default(false),
-    watermarked: boolean("watermarked").notNull().default(true),
-    estimatedTotalCost: numeric("estimated_total_cost", { precision: 10, scale: 2 }),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+      .references(() => clients.id, { onDelete: "cascade" }),
+    numero: text("numero").notNull(),
+    statut: devisStatutEnum("statut").notNull().default("brouillon"),
+    montantTotal: numeric("montant_total", { precision: 10, scale: 2 }).notNull().default("0"),
+    dateValidite: date("date_validite"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("idx_devis_user_id").on(table.userId), index("idx_devis_client_id").on(table.clientId)]
+);
+
+export const devisLignes = pgTable(
+  "devis_lignes",
+  {
+    id: id(),
+    devisId: uuid("devis_id")
+      .notNull()
+      .references(() => devis.id, { onDelete: "cascade" }),
+    description: text("description").notNull(),
+    quantite: numeric("quantite", { precision: 10, scale: 2 }).notNull().default("1"),
+    prixUnitaire: numeric("prix_unitaire", { precision: 10, scale: 2 }).notNull().default("0"),
+    ordre: integer("ordre").notNull().default(0),
+  },
+  (table) => [index("idx_devis_lignes_devis_id").on(table.devisId)]
+);
+
+// -----------------------------------------------------------------------------
+// factures + lignes
+// -----------------------------------------------------------------------------
+export const factures = pgTable(
+  "factures",
+  {
+    id: id(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "cascade" }),
+    devisId: uuid("devis_id").references(() => devis.id, { onDelete: "set null" }),
+    numero: text("numero").notNull(),
+    // "en_retard" n'est jamais stocké : calculé à la volée
+    // (statut = 'envoyee' AND date_echeance < now()) pour ne jamais se périmer.
+    statut: factureStatutEnum("statut").notNull().default("brouillon"),
+    montantTotal: numeric("montant_total", { precision: 10, scale: 2 }).notNull().default("0"),
+    dateEmission: date("date_emission"),
+    dateEcheance: date("date_echeance"),
+    datePaiement: timestamp("date_paiement", { withTimezone: true }),
+    stripePaymentLinkId: text("stripe_payment_link_id"),
+    stripePaymentLinkUrl: text("stripe_payment_link_url"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    index("idx_generations_user_id").on(table.userId),
-    index("idx_generations_project_id").on(table.projectId),
-    index("idx_generations_status").on(table.status),
+    index("idx_factures_user_id").on(table.userId),
+    index("idx_factures_client_id").on(table.clientId),
+    index("idx_factures_statut").on(table.statut),
   ]
 );
 
-export const detectedObjects = pgTable(
-  "detected_objects",
+export const factureLignes = pgTable(
+  "facture_lignes",
   {
     id: id(),
-    generationId: text("generation_id")
+    factureId: uuid("facture_id")
       .notNull()
-      .references(() => generations.id, { onDelete: "cascade" }),
-    category: objectCategoryEnum("category").notNull(),
-    name: text("name").notNull(),
-    estimatedPrice: numeric("estimated_price", { precision: 10, scale: 2 }),
-    buyUrl: text("buy_url"),
-    cheaperAlternativeName: text("cheaper_alternative_name"),
-    cheaperAlternativePrice: numeric("cheaper_alternative_price", { precision: 10, scale: 2 }),
-    cheaperAlternativeUrl: text("cheaper_alternative_url"),
-    premiumAlternativeName: text("premium_alternative_name"),
-    premiumAlternativePrice: numeric("premium_alternative_price", { precision: 10, scale: 2 }),
-    premiumAlternativeUrl: text("premium_alternative_url"),
-    boundingBox: jsonb("bounding_box"),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
+      .references(() => factures.id, { onDelete: "cascade" }),
+    description: text("description").notNull(),
+    quantite: numeric("quantite", { precision: 10, scale: 2 }).notNull().default("1"),
+    prixUnitaire: numeric("prix_unitaire", { precision: 10, scale: 2 }).notNull().default("0"),
+    ordre: integer("ordre").notNull().default(0),
   },
-  (table) => [index("idx_detected_objects_generation_id").on(table.generationId)]
+  (table) => [index("idx_facture_lignes_facture_id").on(table.factureId)]
 );
 
 // -----------------------------------------------------------------------------
-// CRÉDITS / ABONNEMENTS / PAIEMENTS
+// relances
 // -----------------------------------------------------------------------------
-export const creditsLedger = pgTable(
-  "credits_ledger",
+export const relances = pgTable(
+  "relances",
   {
     id: id(),
-    userId: text("user_id")
+    factureId: uuid("facture_id")
       .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    amount: integer("amount").notNull(),
-    reason: creditReasonEnum("reason").notNull(),
-    generationId: text("generation_id").references(() => generations.id, { onDelete: "set null" }),
-    metadata: jsonb("metadata").notNull().default({}),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
+      .references(() => factures.id, { onDelete: "cascade" }),
+    dateEnvoi: timestamp("date_envoi", { withTimezone: true }).notNull().defaultNow(),
+    type: text("type").notNull().default("email"),
+    statut: relanceStatutEnum("statut").notNull().default("envoyee"),
   },
-  (table) => [index("idx_credits_ledger_user_id").on(table.userId)]
-);
-
-export const subscriptions = pgTable(
-  "subscriptions",
-  {
-    id: id(),
-    userId: text("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    stripeSubscriptionId: text("stripe_subscription_id").unique(),
-    stripeCustomerId: text("stripe_customer_id").notNull(),
-    plan: planTierEnum("plan").notNull().default("free"),
-    status: subscriptionStatusEnum("status").notNull().default("active"),
-    currentPeriodStart: timestamp("current_period_start"),
-    currentPeriodEnd: timestamp("current_period_end"),
-    cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-    updatedAt: timestamp("updated_at").notNull().defaultNow(),
-  },
-  (table) => [uniqueIndex("idx_subscriptions_user_id").on(table.userId)]
-);
-
-export const payments = pgTable(
-  "payments",
-  {
-    id: id(),
-    userId: text("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    stripePaymentIntentId: text("stripe_payment_intent_id"),
-    stripeInvoiceId: text("stripe_invoice_id"),
-    amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
-    currency: text("currency").notNull().default("eur"),
-    status: paymentStatusEnum("status").notNull().default("pending"),
-    description: text("description"),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-  },
-  (table) => [index("idx_payments_user_id").on(table.userId)]
+  (table) => [index("idx_relances_facture_id").on(table.factureId)]
 );
 
 // -----------------------------------------------------------------------------
-// FAVORIS / GALERIE / VOTES / SIGNALEMENTS / LOGS
+// RELATIONS
 // -----------------------------------------------------------------------------
-export const favorites = pgTable(
-  "favorites",
-  {
-    id: id(),
-    userId: text("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    generationId: text("generation_id")
-      .notNull()
-      .references(() => generations.id, { onDelete: "cascade" }),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-  },
-  (table) => [uniqueIndex("idx_favorites_unique").on(table.userId, table.generationId)]
-);
-
-export const gallery = pgTable(
-  "gallery",
-  {
-    id: id(),
-    generationId: text("generation_id")
-      .notNull()
-      .unique()
-      .references(() => generations.id, { onDelete: "cascade" }),
-    featured: boolean("featured").notNull().default(false),
-    votesCount: integer("votes_count").notNull().default(0),
-    viewsCount: integer("views_count").notNull().default(0),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-  },
-  (table) => [index("idx_gallery_votes").on(table.votesCount)]
-);
-
-export const votes = pgTable(
-  "votes",
-  {
-    id: id(),
-    userId: text("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    galleryId: text("gallery_id")
-      .notNull()
-      .references(() => gallery.id, { onDelete: "cascade" }),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-  },
-  (table) => [uniqueIndex("idx_votes_unique").on(table.userId, table.galleryId)]
-);
-
-export const reports = pgTable(
-  "reports",
-  {
-    id: id(),
-    reporterId: text("reporter_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    generationId: text("generation_id")
-      .notNull()
-      .references(() => generations.id, { onDelete: "cascade" }),
-    reason: text("reason").notNull(),
-    status: reportStatusEnum("status").notNull().default("pending"),
-    reviewedBy: text("reviewed_by").references(() => users.id),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-  },
-  (table) => [index("idx_reports_status").on(table.status)]
-);
-
-export const activityLogs = pgTable(
-  "activity_logs",
-  {
-    id: id(),
-    userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
-    action: text("action").notNull(),
-    metadata: jsonb("metadata").notNull().default({}),
-    ipAddress: text("ip_address"),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-  },
-  (table) => [index("idx_activity_logs_created_at").on(table.createdAt)]
-);
-
-// -----------------------------------------------------------------------------
-// RELATIONS (API de requêtage Drizzle)
-// -----------------------------------------------------------------------------
-export const usersRelations = relations(users, ({ many }) => ({
-  projects: many(projects),
-  generations: many(generations),
-  favorites: many(favorites),
-  subscription: many(subscriptions),
+export const profilesRelations = relations(profiles, ({ many }) => ({
+  clients: many(clients),
+  devis: many(devis),
+  factures: many(factures),
 }));
 
-export const projectsRelations = relations(projects, ({ one, many }) => ({
-  user: one(users, { fields: [projects.userId], references: [users.id] }),
-  generations: many(generations),
+export const clientsRelations = relations(clients, ({ one, many }) => ({
+  profile: one(profiles, { fields: [clients.userId], references: [profiles.id] }),
+  devis: many(devis),
+  factures: many(factures),
 }));
 
-export const generationsRelations = relations(generations, ({ one, many }) => ({
-  project: one(projects, { fields: [generations.projectId], references: [projects.id] }),
-  user: one(users, { fields: [generations.userId], references: [users.id] }),
-  detectedObjects: many(detectedObjects),
-  galleryEntry: one(gallery, { fields: [generations.id], references: [gallery.generationId] }),
+export const devisRelations = relations(devis, ({ one, many }) => ({
+  client: one(clients, { fields: [devis.clientId], references: [clients.id] }),
+  lignes: many(devisLignes),
+  factures: many(factures),
 }));
 
-export const detectedObjectsRelations = relations(detectedObjects, ({ one }) => ({
-  generation: one(generations, { fields: [detectedObjects.generationId], references: [generations.id] }),
+export const devisLignesRelations = relations(devisLignes, ({ one }) => ({
+  devis: one(devis, { fields: [devisLignes.devisId], references: [devis.id] }),
 }));
 
-export const galleryRelations = relations(gallery, ({ one, many }) => ({
-  generation: one(generations, { fields: [gallery.generationId], references: [generations.id] }),
-  votes: many(votes),
+export const facturesRelations = relations(factures, ({ one, many }) => ({
+  client: one(clients, { fields: [factures.clientId], references: [clients.id] }),
+  devis: one(devis, { fields: [factures.devisId], references: [devis.id] }),
+  lignes: many(factureLignes),
+  relances: many(relances),
 }));
 
-export const votesRelations = relations(votes, ({ one }) => ({
-  user: one(users, { fields: [votes.userId], references: [users.id] }),
-  gallery: one(gallery, { fields: [votes.galleryId], references: [gallery.id] }),
+export const factureLignesRelations = relations(factureLignes, ({ one }) => ({
+  facture: one(factures, { fields: [factureLignes.factureId], references: [factures.id] }),
 }));
 
-export const favoritesRelations = relations(favorites, ({ one }) => ({
-  user: one(users, { fields: [favorites.userId], references: [users.id] }),
-  generation: one(generations, { fields: [favorites.generationId], references: [generations.id] }),
+export const relancesRelations = relations(relances, ({ one }) => ({
+  facture: one(factures, { fields: [relances.factureId], references: [factures.id] }),
 }));
 
 // -----------------------------------------------------------------------------
 // TYPES INFÉRÉS
 // -----------------------------------------------------------------------------
-export type User = typeof users.$inferSelect;
-export type NewUser = typeof users.$inferInsert;
-export type Project = typeof projects.$inferSelect;
-export type NewProject = typeof projects.$inferInsert;
-export type Generation = typeof generations.$inferSelect;
-export type NewGeneration = typeof generations.$inferInsert;
-export type DetectedObject = typeof detectedObjects.$inferSelect;
-export type NewDetectedObject = typeof detectedObjects.$inferInsert;
-export type CreditLedgerEntry = typeof creditsLedger.$inferSelect;
-export type Subscription = typeof subscriptions.$inferSelect;
-export type Payment = typeof payments.$inferSelect;
-export type Favorite = typeof favorites.$inferSelect;
-export type GalleryEntry = typeof gallery.$inferSelect;
-export type Vote = typeof votes.$inferSelect;
-export type Report = typeof reports.$inferSelect;
-export type ActivityLog = typeof activityLogs.$inferSelect;
+export type Profile = typeof profiles.$inferSelect;
+export type Client = typeof clients.$inferSelect;
+export type NewClient = typeof clients.$inferInsert;
+export type Devis = typeof devis.$inferSelect;
+export type NewDevis = typeof devis.$inferInsert;
+export type DevisLigne = typeof devisLignes.$inferSelect;
+export type NewDevisLigne = typeof devisLignes.$inferInsert;
+export type Facture = typeof factures.$inferSelect;
+export type NewFacture = typeof factures.$inferInsert;
+export type FactureLigne = typeof factureLignes.$inferSelect;
+export type NewFactureLigne = typeof factureLignes.$inferInsert;
+export type Relance = typeof relances.$inferSelect;
 
-// -----------------------------------------------------------------------------
-// TYPES D'ENUM (dérivés des pgEnum ci-dessus)
-// -----------------------------------------------------------------------------
-export type UserRole = (typeof userRoleEnum.enumValues)[number];
 export type PlanTier = (typeof planTierEnum.enumValues)[number];
-export type RoomType = (typeof roomTypeEnum.enumValues)[number];
-export type BudgetMode = (typeof budgetModeEnum.enumValues)[number];
-export type TransformationLevel = (typeof transformationLevelEnum.enumValues)[number];
-export type GenerationQuality = (typeof generationQualityEnum.enumValues)[number];
-export type GenerationStatus = (typeof generationStatusEnum.enumValues)[number];
-export type AiProvider = (typeof aiProviderEnum.enumValues)[number];
-export type SubscriptionStatus = (typeof subscriptionStatusEnum.enumValues)[number];
-export type PaymentStatus = (typeof paymentStatusEnum.enumValues)[number];
-export type ObjectCategory = (typeof objectCategoryEnum.enumValues)[number];
-export type ReportStatus = (typeof reportStatusEnum.enumValues)[number];
-export type CreditReason = (typeof creditReasonEnum.enumValues)[number];
+export type DevisStatut = (typeof devisStatutEnum.enumValues)[number];
+export type FactureStatut = (typeof factureStatutEnum.enumValues)[number];
+export type RelanceStatut = (typeof relanceStatutEnum.enumValues)[number];

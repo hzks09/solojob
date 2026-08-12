@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/providers/theme-provider";
-import { SessionProvider } from "@/components/providers/session-provider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -16,9 +15,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "RoomAI — Réinvente ton intérieur avec l'IA",
+  title: "SoloJob — Devis, factures et relances pour artisans solos",
   description:
-    "Transforme virtuellement n'importe quelle pièce de ta maison grâce à l'intelligence artificielle. Résultats photoréalistes en quelques secondes.",
+    "Crée tes devis, transforme-les en factures, encaisse en ligne et laisse SoloJob relancer tes clients en retard de paiement à ta place.",
 };
 
 export default function RootLayout({
@@ -34,10 +33,8 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <ThemeProvider>
-          <SessionProvider>
-            {children}
-            <Toaster richColors position="top-center" />
-          </SessionProvider>
+          {children}
+          <Toaster richColors position="top-center" />
         </ThemeProvider>
       </body>
     </html>
