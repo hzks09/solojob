@@ -1,90 +1,85 @@
-# RoomAI
+# SoloJob
 
-Plateforme SaaS de réaménagement d'intérieur par IA. Prends une photo d'une pièce, choisis un style, obtiens un rendu photoréaliste + une liste de mobilier avec estimation de prix.
+Devis, factures et relances de paiement pour artisans et indépendants solos (plombiers, électriciens, jardiniers, femmes de ménage, bricoleurs...). Crée un devis en 2 minutes, convertis-le en facture en un clic, encaisse en ligne, et laisse SoloJob relancer automatiquement les clients en retard.
 
 ## Stack
 
 - **Next.js 15** (App Router, Server Actions) + React 19 + TypeScript
-- **Neon** (Postgres serverless) + **Drizzle ORM**
-- **Auth.js v5** (Google, Apple, e-mail/mot de passe) + adapter Drizzle
-- **Vercel Blob** pour le stockage des photos
-- **Stripe** pour les abonnements (Pro / Premium)
-- **Resend** pour les e-mails transactionnels (vérification, reset password)
-- Fournisseur IA modulaire (`mock` par défaut, `replicate` en option) — voir `src/lib/ai/`
-- Tailwind CSS v4, `next-themes` (dark mode), `sonner` (toasts), `framer-motion`
+- **Supabase** — Postgres, Auth (e-mail/mot de passe), Storage (bucket `logos`), RLS
+- **Drizzle ORM** (`postgres-js`) pour les tables métier
+- **Stripe** — abonnements (Free / Solo / Solo+) et Payment Links par facture
+- **Resend** — e-mails de relance
+- **@react-pdf/renderer** — génération de PDF de facture à la volée (jamais stocké, pour rester dans le tier gratuit Supabase Storage)
+- **Vercel Cron** — job quotidien de relance des factures en retard
 
-## Démarrer en local (100% gratuit)
+## Démarrer en local
 
 ```bash
 npm install
 cp .env.example .env.local
+```
+
+Renseigne dans `.env.local` :
+1. Un projet [Supabase](https://supabase.com) (gratuit) — URL, clé publique, clé secrète, connection string Postgres
+2. Une clé [Resend](https://resend.com) (gratuit) pour les e-mails de relance
+3. Des clés [Stripe](https://dashboard.stripe.com) + deux Price IDs (Solo 12€/mois, Solo+ 19€/mois)
+4. Un `CRON_SECRET` (`openssl rand -hex 24`)
+
+Puis applique le schéma et lance le serveur :
+
+```bash
+npm run db:generate   # migrations SQL (drizzle/) à partir de src/lib/db/schema.ts
+npm run db:migrate    # applique les migrations sur Supabase
 npm run dev
 ```
 
-Par défaut `.env.local` peut rester avec `AI_PROVIDER=mock` : aucune génération IA réelle n'est facturée, une image de substitution est renvoyée. Il faut quand même une vraie base **Neon** (gratuite) pour que l'auth et les données fonctionnent — [créer un projet Neon](https://neon.tech), copier la connection string dans `DATABASE_URL`, puis :
-
-```bash
-npm run db:push      # applique le schéma directement (dev)
-# ou
-npm run db:generate  # régénère les migrations SQL (drizzle/) après une modif du schéma
-npm run db:migrate   # applique les migrations générées
-npm run db:studio    # explorateur de données Drizzle Studio
-```
-
-## Coûts
-
-| Service | Gratuit ? |
-|---|---|
-| Neon, Vercel, Auth.js, Resend, Vercel Blob | Oui, tiers gratuits suffisants pour démarrer |
-| Stripe | Oui à l'intégration (commission uniquement sur les vrais paiements clients) |
-| Fournisseur IA (Replicate) | **Payant à l'usage**, désactivé par défaut (`AI_PROVIDER=mock`) |
+Le trigger de création de profil, les policies RLS et le bucket Storage `logos` sont dans `supabase/migrations/0001_profile_trigger_rls_storage.sql` (à exécuter une fois sur la base Supabase, en plus des migrations Drizzle).
 
 ## Architecture
 
 ```
 src/
-  app/                          Routes (App Router)
-    page.tsx                    Landing page
-    login/ signup/ forgot-password/ reset-password/ verify-email/   Pages d'auth
-    dashboard/ studio/ history/ favorites/ billing/                 Espace utilisateur connecté
-    gallery/ gallery/[id]/      Galerie publique + détail d'un design
-    admin/                      Panneau admin (stats, users, abonnements, contenus, signalements)
+  app/
+    page.tsx                       Landing page
+    login/ signup/ forgot-password/ reset-password/   Pages d'auth (Supabase Auth)
+    auth/callback/                 Échange le code des liens Supabase (confirmation, reset) contre une session
+    (app)/                         Espace connecté (protégé par le middleware)
+      dashboard/                   Stats + chiffre d'affaires (payé ce mois / en attente)
+      clients/                     CRUD clients
+      devis/                       Devis + conversion en facture
+      factures/                    Factures, filtres par statut, PDF, paiement
+      settings/                    Logo + infos entreprise
+      billing/                     Abonnement Stripe
     api/
-      auth/[...nextauth]/       Route handler Auth.js
-      generate/                 Lance une génération IA (débite les crédits)
-      generate/[id]/status/     Poll du statut d'une génération
-      upload/                   Upload d'image vers Vercel Blob
-      stripe/checkout|portal|webhook/   Abonnements Stripe
+      factures/[id]/pdf/           Génère le PDF de la facture à la volée (jamais stocké)
+      stripe/checkout|portal|webhook/   Abonnements + paiement des factures
+      cron/relances/               Job quotidien de relance (protégé par CRON_SECRET)
 
   components/
-    ui/                         Primitives (Button, Card, Input, Badge...)
-    auth/ studio/ dashboard/ billing/ gallery/ history/ admin/   Composants métier par domaine
-    providers/                  ThemeProvider, SessionProvider
+    ui/                            Primitives (Button, Card, Input, Badge...)
+    clients/ devis/ factures/ settings/ billing/ dashboard/   Composants métier par domaine
 
   lib/
-    db/schema.ts                Schéma Drizzle (source de vérité de la base)
-    db/index.ts                 Client Drizzle (driver HTTP Neon)
-    db/credits.ts                Débit/crédit atomique des crédits (CTE SQL)
-    auth/auth.config.ts         Config Auth.js "edge-safe" (middleware)
-    auth/config.ts              Config Auth.js complète (providers, adapter)
-    auth/actions.ts             Inscription, vérification e-mail, reset password
-    ai/provider.ts              Interface commune aux fournisseurs IA
-    ai/providers/mock.ts        Fournisseur gratuit (dev/test)
-    ai/providers/replicate.ts   Fournisseur payant (production)
-    stripe/                     Client Stripe + mapping des price IDs
-    shopping/detect.ts          Détection d'objets + estimation de prix (placeholder)
-    actions/                    Server actions (projects, generations, gallery, admin)
-    validations/                Schémas Zod
-    rate-limit.ts               Rate limiting en mémoire
-    constants.ts                Styles, types de pièces, forfaits, coûts en crédits
+    db/schema.ts                   Schéma Drizzle (profiles, clients, devis, factures, relances)
+    db/index.ts                    Client Drizzle (postgres-js, pool minimal + cache HMR)
+    supabase/client.ts|server.ts|middleware.ts|admin.ts   Clients Supabase (browser/serveur/middleware/service role)
+    auth/current-user.ts           Utilisateur Supabase Auth courant + son profil
+    actions/                       Server actions (clients, devis, factures, paiement, profil)
+    pdf/facture-pdf.tsx            Document @react-pdf/renderer
+    email/resend.ts                E-mail de relance
+    stripe/client.ts                Client Stripe + Price IDs
+    constants.ts                   Forfaits (Free/Solo/Solo+), limite de factures gratuites
+    factures-utils.ts              Calcul du statut "en retard" (jamais stocké en base)
 
-drizzle/                        Migrations SQL générées (drizzle-kit generate)
+drizzle/                           Migrations SQL générées (drizzle-kit generate)
+supabase/migrations/               Trigger profil, RLS, bucket Storage (SQL à la main)
+vercel.json                        Planification du cron de relance
 ```
 
 ## Notes de sécurité
 
-- Toutes les clés secrètes (`DATABASE_URL`, `STRIPE_SECRET_KEY`, `SUPABASE_SERVICE_ROLE_KEY`-like, `REPLICATE_API_TOKEN`...) ne sont lues que côté serveur, jamais préfixées `NEXT_PUBLIC_`.
-- Toute écriture en base passe par une server action ou une route API qui vérifie la session (`auth()`) et la propriété de la ressource — pas d'accès direct à la base depuis le client (contrairement à un modèle RLS type Supabase, ici la base Neon n'est jamais exposée au navigateur).
-- Validation Zod sur toutes les entrées utilisateur (auth, génération, upload, Stripe).
-- Rate limiting sur `/api/generate` et `/api/upload`.
-- Le panneau admin est protégé par le middleware (redirection) **et** par un contrôle de rôle dans chaque server action (`requireAdmin()`), en défense en profondeur.
+- Toutes les clés secrètes (`DATABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `STRIPE_SECRET_KEY`, `CRON_SECRET`...) ne sont lues que côté serveur, jamais préfixées `NEXT_PUBLIC_`.
+- RLS activé sur toutes les tables métier (`user_id = auth.uid()`) en défense en profondeur ; l'accès normal passe par des server actions qui vérifient explicitement la propriété de la ressource.
+- Le bucket Storage `logos` limite chaque objet à 2 Mo et restreint l'écriture au dossier `<user_id>/` du propriétaire (policy Storage).
+- La route de cron vérifie l'en-tête `Authorization: Bearer $CRON_SECRET` avant d'envoyer la moindre relance.
+- Le PDF de facture est généré à la demande, jamais persisté — pas de consommation de stockage liée au volume de factures.

@@ -1,5 +1,6 @@
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ManageSubscriptionButton, UpgradeButton } from "@/components/billing/plan-actions";
 import { PLANS } from "@/lib/constants";
 
 export default async function BillingPage() {
@@ -22,6 +23,11 @@ export default async function BillingPage() {
               : "Facturation illimitée"}
           </CardDescription>
         </CardHeader>
+        {current.profile?.stripeCustomerId && (
+          <CardContent>
+            <ManageSubscriptionButton />
+          </CardContent>
+        )}
       </Card>
 
       <div className="mt-8 grid gap-6 md:grid-cols-3">
@@ -37,9 +43,15 @@ export default async function BillingPage() {
                   <li key={f}>• {f}</li>
                 ))}
               </ul>
-              <p className="mt-6 text-center text-xs text-muted">
-                {currentPlan === plan.tier ? "Forfait actif" : "Paiement Stripe à venir"}
-              </p>
+              <div className="mt-6">
+                {plan.tier === "free" ? (
+                  <p className="text-center text-xs text-muted">Forfait par défaut</p>
+                ) : currentPlan === plan.tier ? (
+                  <p className="text-center text-xs text-muted">Forfait actif</p>
+                ) : (
+                  <UpgradeButton plan={plan.tier as "solo" | "solo_plus"} label={`Passer à ${plan.name}`} />
+                )}
+              </div>
             </CardContent>
           </Card>
         ))}

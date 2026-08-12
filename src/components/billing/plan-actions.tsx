@@ -4,7 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
-export function UpgradeButton({ plan, label }: { plan: "pro" | "premium"; label: string }) {
+export function UpgradeButton({ plan, label }: { plan: "solo" | "solo_plus"; label: string }) {
   const [loading, setLoading] = useState(false);
 
   async function handleClick() {
@@ -53,4 +53,3 @@ export function ManageSubscriptionButton() {
     </Button>
   );
 }
-

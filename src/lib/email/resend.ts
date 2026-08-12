@@ -2,8 +2,7 @@ import { Resend } from "resend";
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
-const FROM = process.env.EMAIL_FROM ?? "RoomAI <noreply@roomai.app>";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const FROM = process.env.EMAIL_FROM ?? "SoloJob <onboarding@resend.dev>";
 
 async function send(to: string, subject: string, html: string) {
   if (!resend) {
@@ -13,30 +12,29 @@ async function send(to: string, subject: string, html: string) {
   await resend.emails.send({ from: FROM, to, subject, html });
 }
 
-export async function sendVerificationEmail(to: string, token: string) {
-  const url = `${APP_URL}/verify-email?token=${token}`;
-  await send(
-    to,
-    "Vérifie ton adresse e-mail — RoomAI",
-    `<div style="font-family:sans-serif;max-width:480px;margin:auto">
-      <h2>Bienvenue sur RoomAI</h2>
-      <p>Confirme ton adresse e-mail pour activer ton compte.</p>
-      <a href="${url}" style="display:inline-block;background:#111;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none">Vérifier mon e-mail</a>
-      <p style="color:#888;font-size:12px;margin-top:24px">Ce lien expire dans 24 heures. Si tu n'es pas à l'origine de cette demande, ignore cet e-mail.</p>
-    </div>`
-  );
-}
+export async function sendRelanceEmail(params: {
+  to: string;
+  clientNom: string;
+  factureNumero: string;
+  montant: string;
+  artisanNom: string;
+  paymentLinkUrl?: string | null;
+}) {
+  const { to, clientNom, factureNumero, montant, artisanNom, paymentLinkUrl } = params;
 
-export async function sendPasswordResetEmail(to: string, token: string) {
-  const url = `${APP_URL}/reset-password?token=${token}`;
   await send(
     to,
-    "Réinitialise ton mot de passe — RoomAI",
+    `Rappel — Facture ${factureNumero} en attente de paiement`,
     `<div style="font-family:sans-serif;max-width:480px;margin:auto">
-      <h2>Réinitialisation du mot de passe</h2>
-      <p>Clique sur le bouton ci-dessous pour choisir un nouveau mot de passe.</p>
-      <a href="${url}" style="display:inline-block;background:#111;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none">Réinitialiser mon mot de passe</a>
-      <p style="color:#888;font-size:12px;margin-top:24px">Ce lien expire dans 1 heure. Si tu n'es pas à l'origine de cette demande, ignore cet e-mail.</p>
+      <p>Bonjour ${clientNom},</p>
+      <p>Petit rappel : la facture <strong>${factureNumero}</strong> d'un montant de <strong>${montant} €</strong>
+      auprès de ${artisanNom} est toujours en attente de paiement.</p>
+      ${
+        paymentLinkUrl
+          ? `<a href="${paymentLinkUrl}" style="display:inline-block;background:#111;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;margin-top:12px">Payer en ligne</a>`
+          : ""
+      }
+      <p style="color:#888;font-size:12px;margin-top:24px">Si le paiement a déjà été effectué, ignore cet e-mail.</p>
     </div>`
   );
 }

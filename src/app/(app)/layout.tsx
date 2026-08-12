@@ -9,7 +9,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen">
       <DashboardNav plan={current.profile?.plan} />
-      <main className="mx-auto max-w-6xl px-4 py-10">{children}</main>
+      <main className="mx-auto max-w-6xl px-4 py-10 pb-24 md:pb-10">{children}</main>
     </div>
   );
 }
