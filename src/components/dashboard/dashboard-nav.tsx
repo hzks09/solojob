@@ -43,8 +43,8 @@ export function DashboardNav({ plan }: { plan?: PlanTier }) {
       <header className="sticky top-0 z-20 glass">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-8">
-            <Link href="/dashboard" className="flex items-center gap-2 font-semibold tracking-tight">
-              <span className="inline-block h-6 w-6 rounded-md bg-brand" />
+            <Link href="/dashboard" className="flex items-center gap-2 font-display text-base font-black tracking-tight">
+              <span className="inline-block h-6 w-6 rounded-sm bg-brand" />
               SoloJob
             </Link>
             <nav className="hidden items-center gap-1 md:flex">

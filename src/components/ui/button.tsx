@@ -8,6 +8,7 @@ export const buttonVariants = cva(
     variants: {
       variant: {
         default: "bg-brand text-brand-foreground hover:opacity-90 shadow-sm",
+        action: "bg-action text-action-foreground hover:opacity-90 shadow-sm font-semibold",
         outline: "border border-card-border bg-transparent hover:bg-card",
         ghost: "bg-transparent hover:bg-card",
         glass: "glass hover:opacity-90",

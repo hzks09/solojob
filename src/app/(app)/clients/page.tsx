@@ -10,10 +10,10 @@ export default async function ClientsPage() {
     <div>
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Clients</h1>
+          <h1 className="font-display text-2xl font-black tracking-tight">Clients</h1>
           <p className="mt-1 text-sm text-muted">{clients.length} client(s)</p>
         </div>
-        <Link href="/clients/new" className={buttonVariants()}>
+        <Link href="/clients/new" className={buttonVariants({ variant: "action" })}>
           Nouveau client
         </Link>
       </div>
@@ -21,7 +21,7 @@ export default async function ClientsPage() {
       {clients.length === 0 ? (
         <Card>
           <CardContent className="pt-6 text-center text-sm text-muted">
-            Aucun client pour l&apos;instant. Ajoute ton premier client pour créer un devis.
+            Pas encore de client. Ajoute le premier.
           </CardContent>
         </Card>
       ) : (

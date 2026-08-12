@@ -42,27 +42,27 @@ export default async function DashboardPage() {
     <div>
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Tableau de bord</h1>
+          <h1 className="font-display text-2xl font-black tracking-tight">Tableau de bord</h1>
           <p className="mt-1 text-sm text-muted">Bienvenue {current.profile?.fullName ?? current.authUser.email}</p>
         </div>
-        <Link href="/devis/new" className={buttonVariants()}>
+        <Link href="/devis/new" className={buttonVariants({ variant: "action" })}>
           Nouveau devis
         </Link>
       </div>
 
       <div className="mb-8 grid gap-4 sm:grid-cols-2">
-        <Card className="border-brand">
+        <Card className="border-2 border-accent">
           <CardContent className="pt-6">
             <p className="text-sm text-muted">Payé ce mois-ci</p>
-            <p className="mt-1 text-3xl font-semibold">{caPayeMois.toFixed(2)} €</p>
+            <p className="mt-1 font-mono text-3xl font-semibold text-accent">{caPayeMois.toFixed(2)} €</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className={enRetardCount > 0 ? "border-2 border-action" : undefined}>
           <CardContent className="pt-6">
             <p className="text-sm text-muted">
-              En attente de paiement {enRetardCount > 0 && <span className="text-red-500">({enRetardCount} en retard)</span>}
+              En attente de paiement {enRetardCount > 0 && <span className="text-action">({enRetardCount} en retard)</span>}
             </p>
-            <p className="mt-1 text-3xl font-semibold">{enAttente.toFixed(2)} €</p>
+            <p className="mt-1 font-mono text-3xl font-semibold">{enAttente.toFixed(2)} €</p>
           </CardContent>
         </Card>
       </div>

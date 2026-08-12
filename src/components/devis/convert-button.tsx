@@ -19,12 +19,12 @@ export function ConvertButton({ devisId }: { devisId: string }) {
       if (typeof digest === "string" && digest.startsWith("NEXT_REDIRECT")) throw err;
 
       setLoading(false);
-      toast.error(err instanceof Error ? err.message : "Échec de la conversion");
+      toast.error(err instanceof Error ? err.message : "Ça n'a pas marché. Réessaie.");
     }
   }
 
   return (
-    <Button onClick={handleClick} disabled={loading}>
+    <Button variant="action" onClick={handleClick} disabled={loading}>
       {loading ? "Conversion..." : "Convertir en facture"}
     </Button>
   );
