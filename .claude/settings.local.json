@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(mkdir -p \"/c/Users/Hamza/Desktop/claude projet/src/app/api/auth/[...nextauth]\")",
+      "Bash(npx eslint *)",
+      "Bash(npm run *)",
+      "Bash(npx tsc *)",
+      "Bash(mkdir -p \"/c/Users/Hamza/Desktop/claude projet/src/app/billing\" \"/c/Users/Hamza/Desktop/claude projet/src/app/history\" \"/c/Users/Hamza/Desktop/claude projet/src/app/favorites\" \"/c/Users/Hamza/Desktop/claude projet/src/app/gallery/[id]\" \"/c/Users/Hamza/Desktop/claude projet/src/components/billing\" \"/c/Users/Hamza/Desktop/claude projet/src/components/gallery\" \"/c/Users/Hamza/Desktop/claude projet/src/components/history\")",
+      "Bash(node -e \"const i=require\\('./node_modules/lucide-react'\\); console.log\\(Object.keys\\(i\\).filter\\(k=>/face|share|flag|heart/i.test\\(k\\)\\)\\)\")",
+      "Bash(npx drizzle-kit *)",
+      "Bash(node -e ' *)",
+      "Bash(stripe --version)",
+      "PowerShell(winget install --id Stripe.StripeCLI -e --accept-source-agreements --accept-package-agreements)",
+      "PowerShell(winget search stripe)",
+      "PowerShell(winget install --id Stripe.StripeCli -e --source winget --accept-source-agreements --accept-package-agreements)",
+      "Bash(kill %1)",
+      "Bash(\"/c/Users/Hamza/AppData/Local/Microsoft/WinGet/Packages/Stripe.StripeCli_Microsoft.Winget.Source_8wekyb3d8bbwe/stripe.exe\" listen *)",
+      "Bash(node -e \"console.log\\(require\\('@vercel/blob/package.json'\\).version\\)\")",
+      "mcp__Roblox_Studio__multi_edit",
+      "mcp__Roblox_Studio__execute_luau",
+      "mcp__Roblox_Studio__get_console_output",
+      "mcp__Roblox_Studio__get_studio_state",
+      "mcp__Roblox_Studio__script_read",
+      "mcp__Roblox_Studio__start_stop_play",
+      "mcp__Roblox_Studio__search_game_tree",
+      "mcp__Roblox_Studio__screen_capture",
+      "mcp__Roblox_Studio__script_grep"
+    ]
+  }
+}

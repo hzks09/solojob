@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#e9e4dd"/>
+      <stop offset="100%" stop-color="#cfc6b8"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="url(#g)"/>
+  <g fill="none" stroke="#8b8375" stroke-width="2" opacity="0.5">
+    <rect x="80" y="380" width="220" height="120" rx="10"/>
+    <rect x="360" y="320" width="160" height="180" rx="8"/>
+    <circle cx="620" cy="180" r="60"/>
+  </g>
+  <text x="400" y="300" text-anchor="middle" font-family="sans-serif" font-size="22" fill="#5c564c">
+    Rendu simulé (mode mock — AI_PROVIDER=mock)
+  </text>
+  <text x="400" y="330" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#8b8375">
+    Branchez un vrai fournisseur IA dans .env.local pour un rendu photoréaliste
+  </text>
+</svg>
