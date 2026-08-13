@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, eq, gte, lt } from "drizzle-orm";
+import { and, eq, gte, lt, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { clients, factures, profiles, relances } from "@/lib/db/schema";
 import { sendRelanceEmail } from "@/lib/email/resend";
@@ -10,6 +10,9 @@ import { sendRelanceEmail } from "@/lib/email/resend";
  * dans `relances` pour ne jamais relancer deux fois la même facture le même
  * jour. Protégé par CRON_SECRET (en-tête envoyé automatiquement par Vercel
  * Cron quand la variable d'env CRON_SECRET est définie sur le projet).
+ *
+ * Les relances automatiques sont une fonctionnalité payante (forfaits Solo
+ * et Solo+) — exclues ici pour les comptes au forfait Gratuit.
  */
 export async function GET(req: Request) {
   const authHeader = req.headers.get("authorization");
@@ -25,7 +28,7 @@ export async function GET(req: Request) {
     .from(factures)
     .innerJoin(clients, eq(factures.clientId, clients.id))
     .innerJoin(profiles, eq(factures.userId, profiles.id))
-    .where(and(eq(factures.statut, "envoyee"), lt(factures.dateEcheance, today)));
+    .where(and(eq(factures.statut, "envoyee"), lt(factures.dateEcheance, today), ne(profiles.plan, "free")));
 
   let sent = 0;
   let skipped = 0;
