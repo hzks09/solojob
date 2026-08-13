@@ -2,6 +2,7 @@ import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tampon } from "@/components/ui/tampon";
+import { Logo } from "@/components/ui/logo";
 import { PLANS } from "@/lib/constants";
 
 export default function LandingPage() {
@@ -10,7 +11,7 @@ export default function LandingPage() {
       <header className="sticky top-0 z-20 border-b border-card-border bg-background/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
           <Link href="/" className="flex items-center gap-2 font-display text-lg font-black tracking-tight">
-            <span className="inline-block h-6 w-6 rounded-sm bg-brand" />
+            <Logo className="h-6 w-6" />
             SoloJob
           </Link>
           <nav className="flex items-center gap-3">

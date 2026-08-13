@@ -24,19 +24,30 @@ async function syncPlanFromSubscription(sub: Stripe.Subscription) {
 
 export async function POST(req: Request) {
   const signature = req.headers.get("stripe-signature");
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  // Deux endpoints Stripe pointent ici : un pour les events du compte
+  // plateforme (abonnements), un pour les events des comptes Connect des
+  // artisans (paiements de factures) — chacun a son propre secret de signature.
+  const secrets = [process.env.STRIPE_WEBHOOK_SECRET, process.env.STRIPE_CONNECT_WEBHOOK_SECRET].filter(
+    (s): s is string => Boolean(s)
+  );
 
-  if (!signature || !webhookSecret) {
+  if (!signature || secrets.length === 0) {
     return NextResponse.json({ error: "Signature manquante" }, { status: 400 });
   }
 
   const rawBody = await req.text();
 
-  let event: Stripe.Event;
-  try {
-    event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
-  } catch (err) {
-    return NextResponse.json({ error: `Signature invalide: ${err instanceof Error ? err.message : "?"}` }, { status: 400 });
+  let event: Stripe.Event | undefined;
+  for (const secret of secrets) {
+    try {
+      event = stripe.webhooks.constructEvent(rawBody, signature, secret);
+      break;
+    } catch {
+      continue;
+    }
+  }
+  if (!event) {
+    return NextResponse.json({ error: "Signature invalide" }, { status: 400 });
   }
 
   switch (event.type) {
@@ -72,6 +83,17 @@ export async function POST(req: Request) {
       if (userId) {
         await db.update(profiles).set({ plan: "free", updatedAt: new Date() }).where(eq(profiles.id, userId));
       }
+      break;
+    }
+    case "account.updated": {
+      // Event d'un compte Stripe Connect artisan (pas le compte plateforme) :
+      // on garde `stripeConnectChargesEnabled` synchronisé sans attendre que
+      // l'artisan revienne sur /settings.
+      const account = event.data.object as Stripe.Account;
+      await db
+        .update(profiles)
+        .set({ stripeConnectChargesEnabled: account.charges_enabled, updatedAt: new Date() })
+        .where(eq(profiles.stripeConnectAccountId, account.id));
       break;
     }
     default:

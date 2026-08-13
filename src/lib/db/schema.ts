@@ -7,7 +7,7 @@
  * Drizzle de générer la contrainte de clé étrangère `profiles.id -> auth.users.id`.
  */
 
-import { pgTable, pgEnum, pgSchema, text, timestamp, uuid, numeric, integer, date, index } from "drizzle-orm/pg-core";
+import { pgTable, pgEnum, pgSchema, text, timestamp, uuid, numeric, integer, date, boolean, index } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 const authSchema = pgSchema("auth");
@@ -37,6 +37,10 @@ export const profiles = pgTable("profiles", {
   logoUrl: text("logo_url"),
   plan: planTierEnum("plan").notNull().default("free"),
   stripeCustomerId: text("stripe_customer_id").unique(),
+  // Compte Stripe Connect (Express) de l'artisan — les paiements de ses
+  // factures atterrissent directement dessus, jamais sur le compte plateforme.
+  stripeConnectAccountId: text("stripe_connect_account_id").unique(),
+  stripeConnectChargesEnabled: boolean("stripe_connect_charges_enabled").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
+import { Logo } from "@/components/ui/logo";
 import type { PlanTier } from "@/lib/db/schema";
 
 const LINKS = [
@@ -44,7 +45,7 @@ export function DashboardNav({ plan }: { plan?: PlanTier }) {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-8">
             <Link href="/dashboard" className="flex items-center gap-2 font-display text-base font-black tracking-tight">
-              <span className="inline-block h-6 w-6 rounded-sm bg-brand" />
+              <Logo className="h-6 w-6" />
               SoloJob
             </Link>
             <nav className="hidden items-center gap-1 md:flex">

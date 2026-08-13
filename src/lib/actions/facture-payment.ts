@@ -18,12 +18,12 @@ async function requireOwnedFacture(factureId: string) {
     .limit(1);
   if (!facture) throw new Error("Facture introuvable");
 
-  return facture;
+  return { facture, profile: current.profile };
 }
 
 /** Crée (ou réutilise) un lien de paiement Stripe pour cette facture, et passe son statut à "envoyée". */
 export async function createPaymentLinkAction(factureId: string): Promise<{ url: string }> {
-  const facture = await requireOwnedFacture(factureId);
+  const { facture, profile } = await requireOwnedFacture(factureId);
 
   if (facture.stripePaymentLinkUrl) {
     if (facture.statut === "brouillon") {
@@ -33,23 +33,32 @@ export async function createPaymentLinkAction(factureId: string): Promise<{ url:
     return { url: facture.stripePaymentLinkUrl };
   }
 
+  if (!profile?.stripeConnectAccountId || !profile.stripeConnectChargesEnabled) {
+    throw new Error("Connecte ton compte Stripe dans Réglages avant d'envoyer un lien de paiement.");
+  }
+
   const amountCents = Math.round(Number(facture.montantTotal) * 100);
   if (amountCents <= 0) throw new Error("Le montant de la facture doit être supérieur à 0");
 
-  const paymentLink = await stripe.paymentLinks.create({
-    line_items: [
-      {
-        price_data: {
-          currency: "eur",
-          product_data: { name: `Facture ${facture.numero}` },
-          unit_amount: amountCents,
+  // Créé directement sur le compte Stripe Connect de l'artisan : l'argent
+  // atterrit chez lui, jamais sur le compte plateforme.
+  const paymentLink = await stripe.paymentLinks.create(
+    {
+      line_items: [
+        {
+          price_data: {
+            currency: "eur",
+            product_data: { name: `Facture ${facture.numero}` },
+            unit_amount: amountCents,
+          },
+          quantity: 1,
         },
-        quantity: 1,
-      },
-    ],
-    metadata: { factureId: facture.id },
-    after_completion: { type: "hosted_confirmation" },
-  });
+      ],
+      metadata: { factureId: facture.id },
+      after_completion: { type: "hosted_confirmation" },
+    },
+    { stripeAccount: profile.stripeConnectAccountId }
+  );
 
   await db
     .update(factures)
@@ -82,7 +91,7 @@ export async function markFacturePaidAction(factureId: string): Promise<{ succes
 
 /** Marque une facture comme envoyée sans lien de paiement (ex. paiement hors ligne prévu). */
 export async function markFactureSentAction(factureId: string): Promise<{ success: boolean }> {
-  const facture = await requireOwnedFacture(factureId);
+  const { facture } = await requireOwnedFacture(factureId);
   if (facture.statut !== "brouillon") return { success: true };
 
   await db.update(factures).set({ statut: "envoyee", updatedAt: new Date() }).where(eq(factures.id, factureId));
