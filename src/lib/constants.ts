@@ -44,13 +44,11 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
     factureLimit: "illimite",
     relancesAutomatiques: true,
     paiementEnLigne: true,
-    facturesRecurrentes: true,
-    notesDeFrais: true,
-    features: [
-      "Tout Solo",
-      "Factures récurrentes",
-      "Notes de frais",
-      "Demandes d'avis client automatiques",
-    ],
+    // Facturation récurrente, notes de frais et demandes d'avis automatiques
+    // sont sur la feuille de route mais pas encore construites — ne pas les
+    // remettre dans `features` avant qu'elles existent vraiment.
+    facturesRecurrentes: false,
+    notesDeFrais: false,
+    features: ["Tout Solo"],
   },
 };

@@ -139,6 +139,22 @@ export async function updateDevisAction(id: string, input: DevisInput): Promise<
   return { success: true, id };
 }
 
+/** Passe le devis en "envoyé" (s'il était brouillon) et renvoie le lien public à transmettre au client. */
+export async function markDevisSentAction(id: string): Promise<{ success: boolean; url?: string; error?: string }> {
+  const userId = await requireUserId();
+  const [existing] = await db.select().from(devis).where(and(eq(devis.id, id), eq(devis.userId, userId))).limit(1);
+  if (!existing) return { success: false, error: "Devis introuvable" };
+
+  if (existing.statut === "brouillon") {
+    await db.update(devis).set({ statut: "envoye", updatedAt: new Date() }).where(eq(devis.id, id));
+    revalidatePath(`/devis/${id}`);
+    revalidatePath("/devis");
+  }
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  return { success: true, url: `${appUrl}/d/${id}` };
+}
+
 export async function deleteDevisAction(id: string): Promise<{ success: boolean; error?: string }> {
   const userId = await requireUserId();
   const [existing] = await db.select().from(devis).where(and(eq(devis.id, id), eq(devis.userId, userId))).limit(1);
