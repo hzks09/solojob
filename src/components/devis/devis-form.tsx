@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Trash2 } from "lucide-react";
+import { ChevronDown, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -98,18 +98,21 @@ export function DevisForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="clientId">Client *</Label>
-          <select
-            id="clientId"
-            value={clientId}
-            onChange={(e) => setClientId(e.target.value)}
-            className="h-12 w-full rounded-xl border border-card-border bg-card px-3 text-base"
-          >
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nom}
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              id="clientId"
+              value={clientId}
+              onChange={(e) => setClientId(e.target.value)}
+              className="h-12 w-full appearance-none rounded-xl border border-card-border bg-card px-3 pr-10 text-base outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+            >
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nom}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+          </div>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="dateValidite">Valable jusqu&apos;au</Label>
@@ -125,50 +128,52 @@ export function DevisForm({
 
       <div className="space-y-3">
         <Label>Lignes</Label>
-        {lignes.map((ligne, i) => (
-          <Card key={i}>
-            <CardContent className="space-y-3 pt-4">
-              <Input
-                placeholder="Description (ex: Remplacement robinet)"
-                value={ligne.description}
-                onChange={(e) => updateLigne(i, "description", e.target.value)}
-                className="h-12 text-base"
-                required
-              />
-              <div className="flex items-center gap-2">
+        <Card>
+          <CardContent className="divide-y divide-card-border p-0">
+            {lignes.map((ligne, i) => (
+              <div key={i} className="space-y-3 p-4">
                 <Input
-                  type="number"
-                  min="0"
-                  step="0.5"
-                  placeholder="Qté"
-                  value={ligne.quantite}
-                  onChange={(e) => updateLigne(i, "quantite", e.target.value)}
-                  className="h-12 w-20 text-base"
+                  placeholder="Description (ex: Remplacement robinet)"
+                  value={ligne.description}
+                  onChange={(e) => updateLigne(i, "description", e.target.value)}
+                  className="h-12 text-base"
                   required
                 />
-                <span className="text-muted">×</span>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="Prix unitaire €"
-                  value={ligne.prixUnitaire}
-                  onChange={(e) => updateLigne(i, "prixUnitaire", e.target.value)}
-                  className="h-12 flex-1 text-base"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => removeLigne(i)}
-                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-muted hover:bg-card hover:text-red-500"
-                  aria-label="Supprimer la ligne"
-                >
-                  <Trash2 className="h-5 w-5" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.5"
+                    placeholder="Qté"
+                    value={ligne.quantite}
+                    onChange={(e) => updateLigne(i, "quantite", e.target.value)}
+                    className="h-12 w-20 text-base"
+                    required
+                  />
+                  <span className="text-muted">×</span>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="Prix unitaire €"
+                    value={ligne.prixUnitaire}
+                    onChange={(e) => updateLigne(i, "prixUnitaire", e.target.value)}
+                    className="h-12 flex-1 text-base"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeLigne(i)}
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-muted hover:bg-background hover:text-red-500"
+                    aria-label="Supprimer la ligne"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </button>
+                </div>
               </div>
-            </CardContent>
-          </Card>
-        ))}
+            ))}
+          </CardContent>
+        </Card>
         <Button type="button" variant="outline" onClick={addLigne} className="w-full">
           <Plus className="h-4 w-4" /> Ajouter une ligne
         </Button>
@@ -177,7 +182,7 @@ export function DevisForm({
       <Card>
         <CardContent className="flex items-center justify-between pt-6">
           <span className="text-sm text-muted">Total</span>
-          <span className="text-2xl font-semibold">{total.toFixed(2)} €</span>
+          <span className="font-mono text-2xl font-semibold">{total.toFixed(2)} €</span>
         </CardContent>
       </Card>
 

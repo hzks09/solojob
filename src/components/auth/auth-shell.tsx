@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { Logo } from "@/components/ui/logo";
 
 export function AuthShell({
   title,
@@ -16,11 +17,15 @@ export function AuthShell({
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-16">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_20%_20%,rgba(181,101,47,0.15),transparent_45%),radial-gradient(circle_at_80%_80%,rgba(47,82,51,0.12),transparent_45%)]"
+        className="pointer-events-none absolute inset-0 -z-10"
+        style={{
+          background:
+            "radial-gradient(circle at 20% 20%, color-mix(in srgb, var(--action) 15%, transparent), transparent 45%), radial-gradient(circle at 80% 80%, color-mix(in srgb, var(--accent) 15%, transparent), transparent 45%)",
+        }}
       />
       <div className="w-full max-w-md">
-        <Link href="/" className="mb-8 flex items-center justify-center gap-2 text-lg font-semibold tracking-tight">
-          <span className="inline-block h-8 w-8 rounded-lg bg-brand" />
+        <Link href="/" className="mb-8 flex items-center justify-center gap-2 font-display text-lg font-black tracking-tight">
+          <Logo className="h-8 w-8" />
           SoloJob
         </Link>
         <div className="glass rounded-3xl p-8 shadow-xl">

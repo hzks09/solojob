@@ -3,11 +3,12 @@ import { Tampon, type TamponVariant } from "@/components/ui/tampon";
 import { Card, CardContent } from "@/components/ui/card";
 import { FactureActions } from "@/components/factures/facture-actions";
 import { getFactureWithLignes } from "@/lib/actions/factures";
+import { getCurrentUser } from "@/lib/auth/current-user";
 import { isEnRetard } from "@/lib/factures-utils";
 
 export default async function FactureDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const result = await getFactureWithLignes(id);
+  const [result, current] = await Promise.all([getFactureWithLignes(id), getCurrentUser()]);
   if (!result) notFound();
 
   const { facture, client, lignes } = result;
@@ -21,7 +22,7 @@ export default async function FactureDetailPage({ params }: { params: Promise<{ 
         <Tampon variant={statut} />
       </div>
 
-      <FactureActions facture={facture} />
+      <FactureActions facture={facture} canAcceptOnlinePayment={current?.profile?.stripeConnectChargesEnabled ?? false} />
 
       {facture.stripePaymentLinkUrl && facture.statut !== "payee" && (
         <p className="break-all rounded-xl border border-card-border bg-card p-3 text-xs text-muted">

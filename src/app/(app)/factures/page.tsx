@@ -7,7 +7,7 @@ export default async function FacturesPage() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-2xl font-semibold tracking-tight">Factures</h1>
+        <h1 className="font-display text-2xl font-black tracking-tight">Factures</h1>
         <p className="mt-1 text-sm text-muted">{rows.length} facture(s)</p>
       </div>
       <FacturesList rows={rows} />

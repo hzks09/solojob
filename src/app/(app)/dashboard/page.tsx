@@ -6,6 +6,7 @@ import { getCurrentUser } from "@/lib/auth/current-user";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { isEnRetard } from "@/lib/factures-utils";
+import { PLANS } from "@/lib/constants";
 
 export default async function DashboardPage() {
   const current = await getCurrentUser();
@@ -31,16 +32,17 @@ export default async function DashboardPage() {
 
   const enRetardCount = allFactures.filter((f) => isEnRetard(f)).length;
 
+  const plan = current.profile?.plan ?? "free";
   const stats = [
     { label: "Clients", value: clientCount.value },
     { label: "Devis", value: devisCount.value },
     { label: "Factures", value: allFactures.length },
-    { label: "Forfait", value: current.profile?.plan ?? "free" },
+    { label: "Forfait", value: PLANS[plan].name },
   ];
 
   return (
     <div>
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl font-black tracking-tight">Tableau de bord</h1>
           <p className="mt-1 text-sm text-muted">Bienvenue {current.profile?.fullName ?? current.authUser.email}</p>
@@ -72,7 +74,7 @@ export default async function DashboardPage() {
           <Card key={s.label}>
             <CardContent className="pt-6">
               <p className="text-sm text-muted">{s.label}</p>
-              <p className="mt-1 text-2xl font-semibold capitalize">{s.value}</p>
+              <p className="mt-1 font-mono text-2xl font-semibold">{s.value}</p>
             </CardContent>
           </Card>
         ))}

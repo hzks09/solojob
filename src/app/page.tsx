@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Tampon } from "@/components/ui/tampon";
 import { Logo } from "@/components/ui/logo";
+import { PlanCard } from "@/components/billing/plan-card";
 import { PLANS } from "@/lib/constants";
 
 export default function LandingPage() {
@@ -75,28 +75,22 @@ export default function LandingPage() {
           <h2 className="mb-10 text-center font-display text-2xl font-black tracking-tight">Des forfaits simples</h2>
           <div className="grid gap-6 md:grid-cols-3">
             {Object.values(PLANS).map((plan) => (
-              <Card key={plan.tier} className={plan.tier === "solo" ? "border-2 border-brand" : undefined}>
-                <CardContent className="pt-6">
-                  <h3 className="font-display text-lg font-black">{plan.name}</h3>
-                  <p className="mt-2 font-mono text-3xl font-semibold">
-                    {plan.priceMonthly}€<span className="text-sm font-normal text-muted"> /mois</span>
-                  </p>
-                  <ul className="mt-4 space-y-2 text-sm text-muted">
-                    {plan.features.map((f) => (
-                      <li key={f}>• {f}</li>
-                    ))}
-                  </ul>
+              <PlanCard
+                key={plan.tier}
+                plan={plan}
+                highlighted={plan.tier === "solo"}
+                cta={
                   <Link
                     href="/signup"
                     className={buttonVariants({
-                      className: "mt-6 w-full",
+                      className: "w-full",
                       variant: plan.tier === "solo" ? "action" : "outline",
                     })}
                   >
                     Choisir {plan.name}
                   </Link>
-                </CardContent>
-              </Card>
+                }
+              />
             ))}
           </div>
         </section>

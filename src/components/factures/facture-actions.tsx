@@ -8,7 +8,13 @@ import { Tampon } from "@/components/ui/tampon";
 import { createPaymentLinkAction, markFacturePaidAction, markFactureSentAction } from "@/lib/actions/facture-payment";
 import type { Facture } from "@/lib/db/schema";
 
-export function FactureActions({ facture }: { facture: Facture }) {
+export function FactureActions({
+  facture,
+  canAcceptOnlinePayment,
+}: {
+  facture: Facture;
+  canAcceptOnlinePayment: boolean;
+}) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
   const [showStamp, setShowStamp] = useState(false);
@@ -71,9 +77,15 @@ export function FactureActions({ facture }: { facture: Facture }) {
 
       {facture.statut !== "payee" && (
         <>
-          <Button type="button" variant="outline" disabled={loading !== null} onClick={handleCreateLink}>
-            {loading === "link" ? "Création..." : facture.stripePaymentLinkUrl ? "Copier le lien de paiement" : "Créer un lien de paiement"}
-          </Button>
+          {canAcceptOnlinePayment ? (
+            <Button type="button" variant="outline" disabled={loading !== null} onClick={handleCreateLink}>
+              {loading === "link" ? "Création..." : facture.stripePaymentLinkUrl ? "Copier le lien de paiement" : "Créer un lien de paiement"}
+            </Button>
+          ) : (
+            <span className="flex items-center rounded-full border border-card-border px-3 py-1.5 text-xs text-muted">
+              Paiement en ligne bientôt disponible
+            </span>
+          )}
           {facture.statut === "brouillon" && (
             <Button type="button" variant="ghost" disabled={loading !== null} onClick={handleMarkSent}>
               {loading === "sent" ? "..." : "Marquer comme envoyée"}

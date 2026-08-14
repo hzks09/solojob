@@ -6,7 +6,7 @@ export default async function NewDevisPage() {
 
   return (
     <div>
-      <h1 className="mb-8 text-2xl font-semibold tracking-tight">Nouveau devis</h1>
+      <h1 className="mb-8 font-display text-2xl font-black tracking-tight">Nouveau devis</h1>
       <div className="max-w-lg">
         <DevisForm clients={clients} />
       </div>
