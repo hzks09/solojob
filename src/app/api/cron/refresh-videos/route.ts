@@ -1,12 +1,19 @@
 import { NextResponse } from "next/server";
-import { inArray, lt } from "drizzle-orm";
+import { eq, inArray, lt } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { videos } from "@/lib/db/schema";
+import { moodSearchCursors, videos } from "@/lib/db/schema";
 import { searchVideos, fetchVideoDetails, parseIsoDuration, type YoutubeVideoItem } from "@/lib/youtube/client";
 import { MOOD_CATEGORIES } from "@/lib/youtube/moods";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 const SEARCH_RESULTS_PER_MOOD = 25;
+
+async function getCursor(tag: string) {
+  const [existing] = await db.select().from(moodSearchCursors).where(eq(moodSearchCursors.tag, tag)).limit(1);
+  if (existing) return existing;
+  const [created] = await db.insert(moodSearchCursors).values({ tag }).returning();
+  return created;
+}
 
 function chunk<T>(arr: T[], size: number): T[][] {
   const out: T[][] = [];
@@ -55,9 +62,13 @@ async function upsertVideos(items: YoutubeVideoItem[], extraTag?: string) {
  * à l'API YouTube — les swipes utilisateur ne font jamais d'appel direct.
  *
  * Budget de quota par exécution : `search.list` (100 unités) une fois par
- * mood prédéfinie (MOOD_CATEGORIES.length appels), + `videos.list`
- * (1 unité/appel) pour les métadonnées et le rafraîchissement des vidéos de
- * plus de 30 jours — largement sous les 10 000 unités/jour gratuites.
+ * mood prédéfinie (MOOD_CATEGORIES.length appels, soit 800 unités pour 8
+ * moods), + `videos.list` (1 unité/appel) pour les métadonnées et le
+ * rafraîchissement des vidéos de plus de 30 jours — largement sous les
+ * 10 000 unités/jour gratuites (le cron ne tourne qu'une fois/jour, voir
+ * vercel.json). Chaque mood avance dans sa pagination (ou passe à la
+ * formulation suivante une fois les pages épuisées) au lieu de rappeler
+ * systématiquement la même première page — voir `moodSearchCursors`.
  */
 export async function GET(req: Request) {
   const authHeader = req.headers.get("authorization");
@@ -70,11 +81,37 @@ export async function GET(req: Request) {
   let videosListCalls = 0;
   let videosUpserted = 0;
 
-  // 1) Découverte de nouvelles vidéos — une recherche par mood prédéfinie.
+  // 1) Découverte de nouvelles vidéos — une recherche par mood prédéfinie,
+  // qui avance dans sa pagination (ou change de formulation) à chaque run.
   for (const mood of MOOD_CATEGORIES) {
     try {
-      const videoIds = await searchVideos(mood.searchQuery, SEARCH_RESULTS_PER_MOOD);
+      const cursor = await getCursor(mood.tag);
+      const variant = mood.searchQueries[cursor.variantIndex % mood.searchQueries.length];
+      // Alterne pertinence/récence selon la variante en cours, pour que le
+      // pool ne se fige pas sur d'anciennes vidéos.
+      const order = cursor.variantIndex % 2 === 0 ? "relevance" : "date";
+
+      const { videoIds, nextPageToken } = await searchVideos(variant, {
+        maxResults: SEARCH_RESULTS_PER_MOOD,
+        pageToken: cursor.pageToken,
+        order,
+      });
       searchCalls++;
+
+      if (nextPageToken) {
+        // Encore des pages sur cette formulation : on avance dedans la prochaine fois.
+        await db
+          .update(moodSearchCursors)
+          .set({ pageToken: nextPageToken, updatedAt: new Date() })
+          .where(eq(moodSearchCursors.tag, mood.tag));
+      } else {
+        // Pages épuisées : on passe à la formulation suivante en repartant de zéro.
+        await db
+          .update(moodSearchCursors)
+          .set({ variantIndex: cursor.variantIndex + 1, pageToken: null, updatedAt: new Date() })
+          .where(eq(moodSearchCursors.tag, mood.tag));
+      }
+
       if (videoIds.length === 0) continue;
 
       const details = await fetchVideoDetails(videoIds);

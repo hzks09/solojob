@@ -65,6 +65,20 @@ export const videos = pgTable(
 );
 
 // -----------------------------------------------------------------------------
+// mood_search_cursors — un curseur par mood pour que le job planifié fasse
+// vraiment grossir le pool (pagination YouTube) au lieu de redemander la même
+// première page à chaque exécution. `variantIndex` avance vers la formulation
+// suivante (voir MOOD_CATEGORIES.searchQueries) une fois les pages de la
+// variante courante épuisées ; `pageToken` avance dans la variante courante.
+// -----------------------------------------------------------------------------
+export const moodSearchCursors = pgTable("mood_search_cursors", {
+  tag: text("tag").primaryKey(),
+  variantIndex: integer("variant_index").notNull().default(0),
+  pageToken: text("page_token"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// -----------------------------------------------------------------------------
 // swipes — historique de chaque swipe, sert aussi à compter les découvertes
 // du jour (forfait Gratuit) et à exclure les vidéos déjà vues.
 // -----------------------------------------------------------------------------

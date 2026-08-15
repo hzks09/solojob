@@ -39,10 +39,26 @@ export function parseIsoDuration(iso: string): number {
   return (Number(h) || 0) * 3600 + (Number(m) || 0) * 60 + (Number(s) || 0);
 }
 
-/** search.list — coûte 100 unités de quota par appel. Ne renvoie que les IDs (part=id). */
-export async function searchVideos(query: string, maxResults = 25): Promise<string[]> {
+export interface SearchVideosResult {
+  videoIds: string[];
+  nextPageToken: string | null;
+}
+
+/**
+ * search.list — coûte 100 unités de quota par appel. Ne renvoie que les IDs
+ * (part=id). Supporte la pagination (`pageToken`) pour que l'appelant puisse
+ * avancer dans les résultats d'une exécution à l'autre plutôt que de
+ * toujours récupérer la même première page, et le tri (`order`) pour
+ * alterner pertinence/récence.
+ */
+export async function searchVideos(
+  query: string,
+  options: { maxResults?: number; pageToken?: string | null; order?: "relevance" | "date" } = {}
+): Promise<SearchVideosResult> {
   const apiKey = process.env.YOUTUBE_API_KEY;
-  if (!apiKey) return [];
+  if (!apiKey) return { videoIds: [], nextPageToken: null };
+
+  const { maxResults = 25, pageToken, order } = options;
 
   const url = new URL(`${YOUTUBE_API_BASE}/search`);
   url.searchParams.set("part", "id");
@@ -52,11 +68,16 @@ export async function searchVideos(query: string, maxResults = 25): Promise<stri
   url.searchParams.set("maxResults", String(maxResults));
   url.searchParams.set("q", query);
   url.searchParams.set("key", apiKey);
+  if (pageToken) url.searchParams.set("pageToken", pageToken);
+  if (order) url.searchParams.set("order", order);
 
   const res = await fetch(url.toString());
   if (!res.ok) throw new Error(`YouTube search.list a échoué (${res.status})`);
-  const data = (await res.json()) as { items: { id: { videoId: string } }[] };
-  return data.items.map((item) => item.id.videoId).filter(Boolean);
+  const data = (await res.json()) as { items: { id: { videoId: string } }[]; nextPageToken?: string };
+  return {
+    videoIds: data.items.map((item) => item.id.videoId).filter(Boolean),
+    nextPageToken: data.nextPageToken ?? null,
+  };
 }
 
 /** videos.list — coûte seulement 1 unité par appel (jusqu'à 50 IDs à la fois). */

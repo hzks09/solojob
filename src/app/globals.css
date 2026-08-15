@@ -105,24 +105,3 @@ body {
   outline-offset: 2px;
   border-radius: 4px;
 }
-
-/* Le tampon ne "s'appose" que si l'utilisateur n'a pas demandé de réduire les animations. */
-@media (prefers-reduced-motion: no-preference) {
-  .tampon-pose {
-    animation: tampon-pose 220ms cubic-bezier(0.2, 0.8, 0.3, 1.4);
-  }
-}
-
-@keyframes tampon-pose {
-  0% {
-    opacity: 0;
-    transform: scale(1.6) rotate(var(--tampon-rotate, -6deg));
-  }
-  60% {
-    opacity: 1;
-    transform: scale(0.94) rotate(var(--tampon-rotate, -6deg));
-  }
-  100% {
-    transform: scale(1) rotate(var(--tampon-rotate, -6deg));
-  }
-}
