@@ -7,16 +7,18 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { isEnRetard } from "@/lib/factures-utils";
 import { PLANS } from "@/lib/constants";
+import { getFreePlanUsage } from "@/lib/actions/usage";
 
 export default async function DashboardPage() {
   const current = await getCurrentUser();
   if (!current) return null;
   const userId = current.authUser.id;
 
-  const [[clientCount], [devisCount], allFactures] = await Promise.all([
+  const [[clientCount], [devisCount], allFactures, freePlanUsage] = await Promise.all([
     db.select({ value: count() }).from(clients).where(eq(clients.userId, userId)),
     db.select({ value: count() }).from(devis).where(eq(devis.userId, userId)),
     db.select().from(factures).where(eq(factures.userId, userId)),
+    getFreePlanUsage(),
   ]);
 
   const now = new Date();
@@ -51,6 +53,30 @@ export default async function DashboardPage() {
           Nouveau devis
         </Link>
       </div>
+
+      {freePlanUsage && (
+        <Card className={`mb-8 ${freePlanUsage.used >= freePlanUsage.limit ? "border-2 border-action" : ""}`}>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between text-sm">
+              <p className="text-muted">Factures ce mois-ci (forfait Gratuit)</p>
+              <p className="font-mono font-medium">
+                {freePlanUsage.used} / {freePlanUsage.limit}
+              </p>
+            </div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-card-border">
+              <div
+                className={`h-full rounded-full ${freePlanUsage.used >= freePlanUsage.limit ? "bg-action" : "bg-brand"}`}
+                style={{ width: `${Math.min(100, (freePlanUsage.used / freePlanUsage.limit) * 100)}%` }}
+              />
+            </div>
+            {freePlanUsage.used >= freePlanUsage.limit && (
+              <Link href="/billing" className="mt-3 inline-block text-sm font-medium text-action hover:underline">
+                Passe au forfait Solo pour de la facturation illimitée →
+              </Link>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="mb-8 grid gap-4 sm:grid-cols-2">
         <Card className="border-2 border-accent">

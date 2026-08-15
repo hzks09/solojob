@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
@@ -25,4 +26,12 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Sans SENTRY_ORG/SENTRY_PROJECT/SENTRY_AUTH_TOKEN (aucun compte Sentry créé
+// pour l'instant), l'upload des sourcemaps est simplement ignoré au build —
+// n'empêche jamais `next build` de réussir.
+export default withSentryConfig(nextConfig, {
+  silent: true,
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  webpack: { treeshake: { removeDebugLogging: true } },
+});
