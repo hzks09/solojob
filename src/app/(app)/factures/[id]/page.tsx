@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { Tampon, type TamponVariant } from "@/components/ui/tampon";
 import { Card, CardContent } from "@/components/ui/card";
 import { FactureActions } from "@/components/factures/facture-actions";
+import { LegalInfoWarning } from "@/components/factures/legal-info-warning";
 import { getFactureWithLignes } from "@/lib/actions/factures";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { isEnRetard } from "@/lib/factures-utils";
@@ -14,6 +15,7 @@ export default async function FactureDetailPage({ params }: { params: Promise<{ 
   const { facture, client, lignes } = result;
   const enRetard = isEnRetard(facture);
   const statut: TamponVariant = enRetard ? "retard" : (facture.statut as TamponVariant);
+  const legalInfoMissing = !current?.profile?.siret || !current?.profile?.adresse;
 
   return (
     <div className="max-w-lg space-y-6">
@@ -21,6 +23,8 @@ export default async function FactureDetailPage({ params }: { params: Promise<{ 
         <h1 className="font-display text-2xl font-black tracking-tight">{facture.numero}</h1>
         <Tampon variant={statut} />
       </div>
+
+      {legalInfoMissing && <LegalInfoWarning />}
 
       <FactureActions facture={facture} paypalMeUsername={current?.profile?.paypalMeUsername ?? null} />
 

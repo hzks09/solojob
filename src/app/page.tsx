@@ -3,7 +3,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Tampon } from "@/components/ui/tampon";
 import { Logo } from "@/components/ui/logo";
 import { PlanCard } from "@/components/billing/plan-card";
-import { PLANS } from "@/lib/constants";
+import { PLANS, PUBLIC_PLAN_TIERS } from "@/lib/constants";
 
 export default function LandingPage() {
   return (
@@ -73,8 +73,8 @@ export default function LandingPage() {
 
         <section id="pricing" className="mx-auto max-w-6xl px-4 py-16">
           <h2 className="mb-10 text-center font-display text-2xl font-black tracking-tight">Des forfaits simples</h2>
-          <div className="grid gap-6 md:grid-cols-3">
-            {Object.values(PLANS).map((plan) => (
+          <div className="mx-auto grid max-w-3xl gap-6 md:grid-cols-2">
+            {PUBLIC_PLAN_TIERS.map((tier) => PLANS[tier]).map((plan) => (
               <PlanCard
                 key={plan.tier}
                 plan={plan}
@@ -97,7 +97,18 @@ export default function LandingPage() {
       </main>
 
       <footer className="border-t border-card-border px-4 py-8 text-center text-sm text-muted">
-        © {new Date().getFullYear()} SoloJob. Tous droits réservés.
+        <p>© {new Date().getFullYear()} SoloJob. Tous droits réservés.</p>
+        <nav className="mt-3 flex items-center justify-center gap-4 text-xs">
+          <Link href="/mentions-legales" className="hover:text-foreground">
+            Mentions légales
+          </Link>
+          <Link href="/cgu" className="hover:text-foreground">
+            CGU
+          </Link>
+          <Link href="/confidentialite" className="hover:text-foreground">
+            Confidentialité
+          </Link>
+        </nav>
       </footer>
     </div>
   );

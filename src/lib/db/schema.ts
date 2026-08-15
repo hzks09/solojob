@@ -7,7 +7,7 @@
  * Drizzle de générer la contrainte de clé étrangère `profiles.id -> auth.users.id`.
  */
 
-import { pgTable, pgEnum, pgSchema, text, timestamp, uuid, numeric, integer, date, index } from "drizzle-orm/pg-core";
+import { pgTable, pgEnum, pgSchema, text, timestamp, uuid, numeric, integer, date, boolean, index } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 const authSchema = pgSchema("auth");
@@ -41,6 +41,14 @@ export const profiles = pgTable("profiles", {
   // jeune pour l'activer) : lien de paiement direct via son propre PayPal.me,
   // aucun argent ne transite par SoloJob.
   paypalMeUsername: text("paypal_me_username"),
+  // Mentions légales obligatoires sur les factures françaises.
+  siret: text("siret"),
+  adresse: text("adresse"),
+  codePostal: text("code_postal"),
+  ville: text("ville"),
+  tvaApplicable: boolean("tva_applicable").notNull().default(false),
+  numeroTva: text("numero_tva"),
+  iban: text("iban"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -169,6 +177,15 @@ export const relances = pgTable(
   },
   (table) => [index("idx_relances_facture_id").on(table.factureId)]
 );
+
+// -----------------------------------------------------------------------------
+// stripe_webhook_events — idempotence : un event Stripe (id fourni par Stripe,
+// stable en cas de retry réseau) ne doit jamais être traité deux fois.
+// -----------------------------------------------------------------------------
+export const stripeWebhookEvents = pgTable("stripe_webhook_events", {
+  id: text("id").primaryKey(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 // -----------------------------------------------------------------------------
 // RELATIONS

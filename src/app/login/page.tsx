@@ -8,8 +8,7 @@ import { AuthShell } from "@/components/auth/auth-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createClient } from "@/lib/supabase/client";
-import { loginSchema } from "@/lib/validations/auth";
+import { loginAction } from "@/lib/actions/auth";
 
 export default function LoginPage() {
   return (
@@ -29,22 +28,15 @@ function LoginForm() {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
 
-    const parsed = loginSchema.safeParse({
-      email: form.get("email"),
-      password: form.get("password"),
-    });
-    if (!parsed.success) {
-      toast.error(parsed.error.issues[0]?.message ?? "Formulaire invalide");
-      return;
-    }
-
     setLoading(true);
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword(parsed.data);
+    const result = await loginAction({
+      email: String(form.get("email") ?? ""),
+      password: String(form.get("password") ?? ""),
+    });
     setLoading(false);
 
-    if (error) {
-      toast.error("E-mail ou mot de passe incorrect");
+    if (!result.success) {
+      toast.error(result.error);
       return;
     }
     router.push(callbackUrl);

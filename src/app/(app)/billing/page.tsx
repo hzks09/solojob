@@ -2,7 +2,7 @@ import { getCurrentUser } from "@/lib/auth/current-user";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ManageSubscriptionButton, UpgradeButton } from "@/components/billing/plan-actions";
 import { PlanCard } from "@/components/billing/plan-card";
-import { PLANS } from "@/lib/constants";
+import { PLANS, PUBLIC_PLAN_TIERS } from "@/lib/constants";
 
 export default async function BillingPage() {
   const current = await getCurrentUser();
@@ -33,8 +33,8 @@ export default async function BillingPage() {
         )}
       </Card>
 
-      <div className="mt-8 grid gap-6 md:grid-cols-3">
-        {Object.values(PLANS).map((plan) => (
+      <div className="mt-8 grid gap-6 md:grid-cols-2">
+        {PUBLIC_PLAN_TIERS.map((tier) => PLANS[tier]).map((plan) => (
           <PlanCard
             key={plan.tier}
             plan={plan}

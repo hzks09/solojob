@@ -7,41 +7,32 @@ import { AuthShell } from "@/components/auth/auth-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createClient } from "@/lib/supabase/client";
-import { registerSchema } from "@/lib/validations/auth";
+import { signupAction } from "@/lib/actions/auth";
 
 export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
 
-    const parsed = registerSchema.safeParse({
-      name: form.get("name"),
-      email: form.get("email"),
-      password: form.get("password"),
-    });
-    if (!parsed.success) {
-      toast.error(parsed.error.issues[0]?.message ?? "Formulaire invalide");
+    if (!acceptedTerms) {
+      toast.error("Accepte les CGU et la politique de confidentialité pour continuer");
       return;
     }
 
     setLoading(true);
-    const supabase = createClient();
-    const { error } = await supabase.auth.signUp({
-      email: parsed.data.email,
-      password: parsed.data.password,
-      options: {
-        data: { full_name: parsed.data.name },
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
+    const result = await signupAction({
+      name: String(form.get("name") ?? ""),
+      email: String(form.get("email") ?? ""),
+      password: String(form.get("password") ?? ""),
     });
     setLoading(false);
 
-    if (error) {
-      toast.error(error.message === "User already registered" ? "Un compte existe déjà avec cet e-mail" : error.message);
+    if (!result.success) {
+      toast.error(result.error);
       return;
     }
     setDone(true);
@@ -86,6 +77,26 @@ export default function SignupPage() {
         <div className="space-y-1.5">
           <Label htmlFor="password">Mot de passe</Label>
           <Input id="password" name="password" type="password" required placeholder="8 caractères min." />
+        </div>
+        <div className="flex items-start gap-2">
+          <input
+            id="acceptedTerms"
+            type="checkbox"
+            required
+            checked={acceptedTerms}
+            onChange={(e) => setAcceptedTerms(e.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-card-border"
+          />
+          <Label htmlFor="acceptedTerms" className="font-normal leading-snug">
+            J&apos;accepte les{" "}
+            <Link href="/cgu" target="_blank" className="text-brand underline">
+              CGU
+            </Link>{" "}
+            et la{" "}
+            <Link href="/confidentialite" target="_blank" className="text-brand underline">
+              politique de confidentialité
+            </Link>
+          </Label>
         </div>
         <Button type="submit" className="w-full" disabled={loading}>
           {loading ? "Création..." : "Créer mon compte"}

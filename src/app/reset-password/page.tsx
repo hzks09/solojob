@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
-import { resetPasswordSchema } from "@/lib/validations/auth";
+import { resetPasswordAction } from "@/lib/actions/auth";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -25,19 +25,12 @@ export default function ResetPasswordPage() {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
 
-    const parsed = resetPasswordSchema.safeParse({ password: form.get("password") });
-    if (!parsed.success) {
-      toast.error(parsed.error.issues[0]?.message ?? "Formulaire invalide");
-      return;
-    }
-
     setLoading(true);
-    const supabase = createClient();
-    const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
+    const result = await resetPasswordAction({ password: String(form.get("password") ?? "") });
     setLoading(false);
 
-    if (error) {
-      toast.error(error.message);
+    if (!result.success) {
+      toast.error(result.error);
       return;
     }
     toast.success("Mot de passe mis à jour");

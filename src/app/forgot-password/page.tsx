@@ -7,8 +7,7 @@ import { AuthShell } from "@/components/auth/auth-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createClient } from "@/lib/supabase/client";
-import { forgotPasswordSchema } from "@/lib/validations/auth";
+import { forgotPasswordAction } from "@/lib/actions/auth";
 
 export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
@@ -18,19 +17,14 @@ export default function ForgotPasswordPage() {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
 
-    const parsed = forgotPasswordSchema.safeParse({ email: form.get("email") });
-    if (!parsed.success) {
-      toast.error(parsed.error.issues[0]?.message ?? "Formulaire invalide");
+    setLoading(true);
+    const result = await forgotPasswordAction({ email: String(form.get("email") ?? "") });
+    setLoading(false);
+
+    if (!result.success) {
+      toast.error(result.error);
       return;
     }
-
-    setLoading(true);
-    const supabase = createClient();
-    await supabase.auth.resetPasswordForEmail(parsed.data.email, {
-      redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
-    });
-    setLoading(false);
-    // Toujours succès côté UI (anti-énumération) — Supabase ne révèle pas si l'email existe.
     setSent(true);
   }
 

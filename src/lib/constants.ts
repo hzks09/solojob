@@ -52,3 +52,8 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
     features: ["Tout Solo"],
   },
 };
+
+// Solo+ n'a aujourd'hui aucune fonctionnalité réelle en plus de Solo (voir
+// commentaire ci-dessus) — masqué de l'affichage public tant que ce n'est pas
+// le cas, sans toucher à sa définition ni à sa gestion côté webhook Stripe.
+export const PUBLIC_PLAN_TIERS: PlanTier[] = ["free", "solo"];

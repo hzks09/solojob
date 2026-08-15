@@ -22,6 +22,13 @@ export async function updateProfileAction(input: ProfileInput): Promise<ActionRe
     .set({
       fullName: parsed.data.fullName || null,
       companyName: parsed.data.companyName || null,
+      siret: parsed.data.siret || null,
+      adresse: parsed.data.adresse || null,
+      codePostal: parsed.data.codePostal || null,
+      ville: parsed.data.ville || null,
+      tvaApplicable: parsed.data.tvaApplicable ?? false,
+      numeroTva: parsed.data.tvaApplicable ? parsed.data.numeroTva || null : null,
+      iban: parsed.data.iban || null,
       updatedAt: new Date(),
     })
     .where(eq(profiles.id, current.authUser.id));

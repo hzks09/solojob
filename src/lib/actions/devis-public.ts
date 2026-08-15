@@ -4,6 +4,8 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { clients, devis, devisLignes, profiles } from "@/lib/db/schema";
+import { rateLimit } from "@/lib/rate-limit";
+import { clientIp } from "@/lib/request-ip";
 
 /**
  * Lecture et actions publiques sur un devis, accessibles par lien direct
@@ -25,6 +27,10 @@ export async function getPublicDevis(id: string) {
 }
 
 async function respondToPublicDevis(id: string, next: "accepte" | "refuse") {
+  const ip = await clientIp();
+  const limit = rateLimit(`devis-public:${ip}`, 5, 60_000);
+  if (!limit.success) return { success: false as const, error: "Trop de tentatives, réessaie dans une minute." };
+
   const [existing] = await db.select().from(devis).where(eq(devis.id, id)).limit(1);
   if (!existing) return { success: false as const, error: "Devis introuvable" };
   if (existing.statut !== "envoye") {

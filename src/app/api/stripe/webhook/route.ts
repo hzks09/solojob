@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import Stripe from "stripe";
 import { db } from "@/lib/db";
-import { factures, profiles } from "@/lib/db/schema";
+import { factures, profiles, stripeWebhookEvents } from "@/lib/db/schema";
 import { stripe, STRIPE_PRICE_IDS } from "@/lib/stripe/client";
 import type { PlanTier } from "@/lib/db/schema";
 
@@ -37,6 +37,17 @@ export async function POST(req: Request) {
     event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
   } catch (err) {
     return NextResponse.json({ error: `Signature invalide: ${err instanceof Error ? err.message : "?"}` }, { status: 400 });
+  }
+
+  // Idempotence : Stripe peut renvoyer le même event (retry réseau). L'id est
+  // stable, donc un conflit de clé primaire ici veut dire "déjà traité".
+  try {
+    await db.insert(stripeWebhookEvents).values({ id: event.id });
+  } catch (err) {
+    if ((err as { code?: string } | null)?.code === "23505") {
+      return NextResponse.json({ received: true });
+    }
+    throw err;
   }
 
   switch (event.type) {

@@ -40,6 +40,18 @@ export function FacturePdf({
           <View>
             <Text style={styles.companyName}>{profile?.companyName || profile?.fullName || "Indépendant"}</Text>
             {profile?.fullName && profile.companyName && <Text style={styles.muted}>{profile.fullName}</Text>}
+            {profile?.adresse && <Text style={styles.muted}>{profile.adresse}</Text>}
+            {(profile?.codePostal || profile?.ville) && (
+              <Text style={styles.muted}>
+                {[profile?.codePostal, profile?.ville].filter(Boolean).join(" ")}
+              </Text>
+            )}
+            {profile?.siret && <Text style={styles.muted}>SIRET : {profile.siret}</Text>}
+            <Text style={styles.muted}>
+              {profile?.tvaApplicable && profile.numeroTva
+                ? `TVA intracommunautaire : ${profile.numeroTva}`
+                : "TVA non applicable, art. 293B du CGI"}
+            </Text>
           </View>
           {/* eslint-disable-next-line jsx-a11y/alt-text -- composant @react-pdf/renderer, pas une <img> HTML */}
           {profile?.logoUrl && <Image src={profile.logoUrl} style={styles.logo} />}
@@ -89,6 +101,20 @@ export function FacturePdf({
             <Text style={styles.muted}>Paiement en ligne : {facture.stripePaymentLinkUrl}</Text>
           </View>
         )}
+
+        {profile?.iban && (
+          <View style={{ marginTop: 8 }}>
+            <Text style={styles.muted}>Virement : {profile.iban}</Text>
+          </View>
+        )}
+
+        <View style={{ marginTop: 24 }}>
+          <Text style={styles.muted}>Payable à réception, sauf accord contraire.</Text>
+          <Text style={{ ...styles.muted, marginTop: 4, fontSize: 8 }}>
+            Tout retard de paiement entraîne une pénalité au taux de 3 fois le taux d&apos;intérêt légal, ainsi
+            qu&apos;une indemnité forfaitaire de recouvrement de 40 €.
+          </Text>
+        </View>
       </Page>
     </Document>
   );
