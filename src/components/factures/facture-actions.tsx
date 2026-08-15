@@ -6,35 +6,13 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tampon } from "@/components/ui/tampon";
-import { createPaymentLinkAction, markFacturePaidAction, markFactureSentAction } from "@/lib/actions/facture-payment";
+import { markFacturePaidAction, markFactureSentAction } from "@/lib/actions/facture-payment";
 import type { Facture } from "@/lib/db/schema";
 
-export function FactureActions({
-  facture,
-  stripeConnectReady,
-  paypalMeUsername,
-}: {
-  facture: Facture;
-  stripeConnectReady: boolean;
-  paypalMeUsername: string | null;
-}) {
+export function FactureActions({ facture, paypalMeUsername }: { facture: Facture; paypalMeUsername: string | null }) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
   const [showStamp, setShowStamp] = useState(false);
-
-  async function handleCreateLink() {
-    setLoading("link");
-    try {
-      const { url } = await createPaymentLinkAction(facture.id);
-      await navigator.clipboard.writeText(url).catch(() => {});
-      toast.success("Lien de paiement créé et copié.");
-      router.refresh();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Ça n'a pas marché. Réessaie.");
-    } finally {
-      setLoading(null);
-    }
-  }
 
   async function handlePaypalLink() {
     if (!paypalMeUsername) return;
@@ -93,11 +71,7 @@ export function FactureActions({
 
       {facture.statut !== "payee" && (
         <>
-          {stripeConnectReady ? (
-            <Button type="button" variant="outline" disabled={loading !== null} onClick={handleCreateLink}>
-              {loading === "link" ? "Création..." : facture.stripePaymentLinkUrl ? "Copier le lien de paiement" : "Créer un lien de paiement"}
-            </Button>
-          ) : paypalMeUsername ? (
+          {paypalMeUsername ? (
             <Button type="button" variant="outline" disabled={loading !== null} onClick={handlePaypalLink}>
               {loading === "link" ? "..." : "Copier le lien PayPal"}
             </Button>

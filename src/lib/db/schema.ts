@@ -7,7 +7,7 @@
  * Drizzle de générer la contrainte de clé étrangère `profiles.id -> auth.users.id`.
  */
 
-import { pgTable, pgEnum, pgSchema, text, timestamp, uuid, numeric, integer, date, boolean, index } from "drizzle-orm/pg-core";
+import { pgTable, pgEnum, pgSchema, text, timestamp, uuid, numeric, integer, date, index } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 const authSchema = pgSchema("auth");
@@ -37,12 +37,8 @@ export const profiles = pgTable("profiles", {
   logoUrl: text("logo_url"),
   plan: planTierEnum("plan").notNull().default("free"),
   stripeCustomerId: text("stripe_customer_id").unique(),
-  // Compte Stripe Connect (Express) de l'artisan — les paiements de ses
-  // factures atterrissent directement dessus, jamais sur le compte plateforme.
-  stripeConnectAccountId: text("stripe_connect_account_id").unique(),
-  stripeConnectChargesEnabled: boolean("stripe_connect_charges_enabled").notNull().default(false),
-  // Solution transitoire tant que Stripe Connect n'est pas activé sur la
-  // plateforme : l'artisan encaisse directement via son propre PayPal.me,
+  // Solution d'encaissement en attendant Stripe Connect (compte artisan trop
+  // jeune pour l'activer) : lien de paiement direct via son propre PayPal.me,
   // aucun argent ne transite par SoloJob.
   paypalMeUsername: text("paypal_me_username"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

@@ -22,11 +22,7 @@ export default async function FactureDetailPage({ params }: { params: Promise<{ 
         <Tampon variant={statut} />
       </div>
 
-      <FactureActions
-        facture={facture}
-        stripeConnectReady={current?.profile?.stripeConnectChargesEnabled ?? false}
-        paypalMeUsername={current?.profile?.paypalMeUsername ?? null}
-      />
+      <FactureActions facture={facture} paypalMeUsername={current?.profile?.paypalMeUsername ?? null} />
 
       {facture.stripePaymentLinkUrl && facture.statut !== "payee" && (
         <p className="break-all rounded-xl border border-card-border bg-card p-3 text-xs text-muted">
