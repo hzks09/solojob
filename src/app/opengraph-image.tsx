@@ -33,10 +33,10 @@ export default function OpengraphImage() {
             <span style={{ fontSize: 56, fontWeight: 900, color: "#1d3557", lineHeight: 1 }}>SJ</span>
             <span style={{ width: 60, height: 8, background: "#e85d25", borderRadius: 4, marginTop: 10 }} />
           </div>
-          <span style={{ fontSize: 88, fontWeight: 900, color: "#ffffff" }}>SoloJob</span>
+          <span style={{ fontSize: 88, fontWeight: 900, color: "#ffffff" }}>NextWatch</span>
         </div>
         <span style={{ marginTop: 36, fontSize: 34, color: "#ffffffbf" }}>
-          Devis, factures et relances pour artisans solos
+          Trouve une vidéo YouTube qui va te plaire
         </span>
       </div>
     ),

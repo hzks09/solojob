@@ -7,7 +7,7 @@
  * Drizzle de générer la contrainte de clé étrangère `profiles.id -> auth.users.id`.
  */
 
-import { pgTable, pgEnum, pgSchema, text, timestamp, uuid, numeric, integer, date, boolean, index } from "drizzle-orm/pg-core";
+import { pgTable, pgEnum, pgSchema, text, timestamp, uuid, integer, numeric, primaryKey, index } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 const authSchema = pgSchema("auth");
@@ -21,9 +21,7 @@ const id = () => uuid("id").primaryKey().defaultRandom();
 // ENUMS
 // -----------------------------------------------------------------------------
 export const planTierEnum = pgEnum("plan_tier", ["free", "solo", "solo_plus"]);
-export const devisStatutEnum = pgEnum("devis_statut", ["brouillon", "envoye", "accepte", "refuse"]);
-export const factureStatutEnum = pgEnum("facture_statut", ["brouillon", "envoyee", "payee"]);
-export const relanceStatutEnum = pgEnum("relance_statut", ["envoyee", "echec"]);
+export const swipeDirectionEnum = pgEnum("swipe_direction", ["like", "skip"]);
 
 // -----------------------------------------------------------------------------
 // profiles — extension de auth.users (créé par trigger à l'inscription)
@@ -33,149 +31,96 @@ export const profiles = pgTable("profiles", {
     .primaryKey()
     .references(() => authUsers.id, { onDelete: "cascade" }),
   fullName: text("full_name"),
-  companyName: text("company_name"),
-  logoUrl: text("logo_url"),
   plan: planTierEnum("plan").notNull().default("free"),
   stripeCustomerId: text("stripe_customer_id").unique(),
-  // Solution d'encaissement en attendant Stripe Connect (compte artisan trop
-  // jeune pour l'activer) : lien de paiement direct via son propre PayPal.me,
-  // aucun argent ne transite par SoloJob.
-  paypalMeUsername: text("paypal_me_username"),
-  // Mentions légales obligatoires sur les factures françaises.
-  siret: text("siret"),
-  adresse: text("adresse"),
-  codePostal: text("code_postal"),
-  ville: text("ville"),
-  tvaApplicable: boolean("tva_applicable").notNull().default(false),
-  numeroTva: text("numero_tva"),
-  iban: text("iban"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 // -----------------------------------------------------------------------------
-// clients
+// videos — pool interne de vidéos YouTube mises en cache. Alimenté et
+// rafraîchi uniquement par le job planifié (jamais au moment d'un swipe, pour
+// rester très en dessous du quota gratuit de l'API YouTube Data v3).
 // -----------------------------------------------------------------------------
-export const clients = pgTable(
-  "clients",
+export const videos = pgTable(
+  "videos",
+  {
+    id: id(),
+    youtubeVideoId: text("youtube_video_id").notNull().unique(),
+    title: text("title").notNull(),
+    thumbnailUrl: text("thumbnail_url").notNull(),
+    channelTitle: text("channel_title").notNull(),
+    durationSeconds: integer("duration_seconds").notNull(),
+    language: text("language"),
+    youtubeCategoryId: text("youtube_category_id"),
+    tags: text("tags").array().notNull().default([]),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    cachedAt: timestamp("cached_at", { withTimezone: true }).notNull().defaultNow(),
+    // Politique YouTube API Services : toute donnée mise en cache doit être
+    // rafraîchie ou supprimée au maximum 30 jours après récupération — le
+    // job planifié purge/rafraîchit sur la base de ce champ.
+    lastRefreshedAt: timestamp("last_refreshed_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("idx_videos_last_refreshed_at").on(table.lastRefreshedAt)]
+);
+
+// -----------------------------------------------------------------------------
+// swipes — historique de chaque swipe, sert aussi à compter les découvertes
+// du jour (forfait Gratuit) et à exclure les vidéos déjà vues.
+// -----------------------------------------------------------------------------
+export const swipes = pgTable(
+  "swipes",
   {
     id: id(),
     userId: uuid("user_id")
       .notNull()
       .references(() => profiles.id, { onDelete: "cascade" }),
-    nom: text("nom").notNull(),
-    email: text("email"),
-    telephone: text("telephone"),
-    adresse: text("adresse"),
-    notes: text("notes"),
+    videoId: uuid("video_id")
+      .notNull()
+      .references(() => videos.id, { onDelete: "cascade" }),
+    direction: swipeDirectionEnum("direction").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (table) => [index("idx_clients_user_id").on(table.userId)]
-);
-
-// -----------------------------------------------------------------------------
-// devis + lignes
-// -----------------------------------------------------------------------------
-export const devis = pgTable(
-  "devis",
-  {
-    id: id(),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => profiles.id, { onDelete: "cascade" }),
-    clientId: uuid("client_id")
-      .notNull()
-      .references(() => clients.id, { onDelete: "cascade" }),
-    numero: text("numero").notNull(),
-    statut: devisStatutEnum("statut").notNull().default("brouillon"),
-    montantTotal: numeric("montant_total", { precision: 10, scale: 2 }).notNull().default("0"),
-    dateValidite: date("date_validite"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (table) => [index("idx_devis_user_id").on(table.userId), index("idx_devis_client_id").on(table.clientId)]
-);
-
-export const devisLignes = pgTable(
-  "devis_lignes",
-  {
-    id: id(),
-    devisId: uuid("devis_id")
-      .notNull()
-      .references(() => devis.id, { onDelete: "cascade" }),
-    description: text("description").notNull(),
-    quantite: numeric("quantite", { precision: 10, scale: 2 }).notNull().default("1"),
-    prixUnitaire: numeric("prix_unitaire", { precision: 10, scale: 2 }).notNull().default("0"),
-    ordre: integer("ordre").notNull().default(0),
-  },
-  (table) => [index("idx_devis_lignes_devis_id").on(table.devisId)]
-);
-
-// -----------------------------------------------------------------------------
-// factures + lignes
-// -----------------------------------------------------------------------------
-export const factures = pgTable(
-  "factures",
-  {
-    id: id(),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => profiles.id, { onDelete: "cascade" }),
-    clientId: uuid("client_id")
-      .notNull()
-      .references(() => clients.id, { onDelete: "cascade" }),
-    devisId: uuid("devis_id").references(() => devis.id, { onDelete: "set null" }),
-    numero: text("numero").notNull(),
-    // "en_retard" n'est jamais stocké : calculé à la volée
-    // (statut = 'envoyee' AND date_echeance < now()) pour ne jamais se périmer.
-    statut: factureStatutEnum("statut").notNull().default("brouillon"),
-    montantTotal: numeric("montant_total", { precision: 10, scale: 2 }).notNull().default("0"),
-    dateEmission: date("date_emission"),
-    dateEcheance: date("date_echeance"),
-    datePaiement: timestamp("date_paiement", { withTimezone: true }),
-    stripePaymentLinkId: text("stripe_payment_link_id"),
-    stripePaymentLinkUrl: text("stripe_payment_link_url"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    index("idx_factures_user_id").on(table.userId),
-    index("idx_factures_client_id").on(table.clientId),
-    index("idx_factures_statut").on(table.statut),
+    index("idx_swipes_user_id").on(table.userId),
+    index("idx_swipes_user_created").on(table.userId, table.createdAt),
+    index("idx_swipes_user_video").on(table.userId, table.videoId),
   ]
 );
 
-export const factureLignes = pgTable(
-  "facture_lignes",
+// -----------------------------------------------------------------------------
+// user_tag_weights — poids appris par tag pour chaque utilisateur, ajusté à
+// chaque swipe (monte sur like, descend sur skip) pour affiner les
+// propositions suivantes.
+// -----------------------------------------------------------------------------
+export const userTagWeights = pgTable(
+  "user_tag_weights",
   {
-    id: id(),
-    factureId: uuid("facture_id")
+    userId: uuid("user_id")
       .notNull()
-      .references(() => factures.id, { onDelete: "cascade" }),
-    description: text("description").notNull(),
-    quantite: numeric("quantite", { precision: 10, scale: 2 }).notNull().default("1"),
-    prixUnitaire: numeric("prix_unitaire", { precision: 10, scale: 2 }).notNull().default("0"),
-    ordre: integer("ordre").notNull().default(0),
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    tag: text("tag").notNull(),
+    weight: numeric("weight", { precision: 6, scale: 2 }).notNull().default("0"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index("idx_facture_lignes_facture_id").on(table.factureId)]
+  (table) => [primaryKey({ columns: [table.userId, table.tag] })]
 );
 
 // -----------------------------------------------------------------------------
-// relances
+// saved_videos — liste "à regarder plus tard", distincte du simple like.
 // -----------------------------------------------------------------------------
-export const relances = pgTable(
-  "relances",
+export const savedVideos = pgTable(
+  "saved_videos",
   {
-    id: id(),
-    factureId: uuid("facture_id")
+    userId: uuid("user_id")
       .notNull()
-      .references(() => factures.id, { onDelete: "cascade" }),
-    dateEnvoi: timestamp("date_envoi", { withTimezone: true }).notNull().defaultNow(),
-    type: text("type").notNull().default("email"),
-    statut: relanceStatutEnum("statut").notNull().default("envoyee"),
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    videoId: uuid("video_id")
+      .notNull()
+      .references(() => videos.id, { onDelete: "cascade" }),
+    savedAt: timestamp("saved_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index("idx_relances_facture_id").on(table.factureId)]
+  (table) => [primaryKey({ columns: [table.userId, table.videoId] })]
 );
 
 // -----------------------------------------------------------------------------
@@ -191,59 +136,35 @@ export const stripeWebhookEvents = pgTable("stripe_webhook_events", {
 // RELATIONS
 // -----------------------------------------------------------------------------
 export const profilesRelations = relations(profiles, ({ many }) => ({
-  clients: many(clients),
-  devis: many(devis),
-  factures: many(factures),
+  swipes: many(swipes),
+  savedVideos: many(savedVideos),
+  tagWeights: many(userTagWeights),
 }));
 
-export const clientsRelations = relations(clients, ({ one, many }) => ({
-  profile: one(profiles, { fields: [clients.userId], references: [profiles.id] }),
-  devis: many(devis),
-  factures: many(factures),
+export const videosRelations = relations(videos, ({ many }) => ({
+  swipes: many(swipes),
+  savedBy: many(savedVideos),
 }));
 
-export const devisRelations = relations(devis, ({ one, many }) => ({
-  client: one(clients, { fields: [devis.clientId], references: [clients.id] }),
-  lignes: many(devisLignes),
-  factures: many(factures),
+export const swipesRelations = relations(swipes, ({ one }) => ({
+  video: one(videos, { fields: [swipes.videoId], references: [videos.id] }),
+  profile: one(profiles, { fields: [swipes.userId], references: [profiles.id] }),
 }));
 
-export const devisLignesRelations = relations(devisLignes, ({ one }) => ({
-  devis: one(devis, { fields: [devisLignes.devisId], references: [devis.id] }),
-}));
-
-export const facturesRelations = relations(factures, ({ one, many }) => ({
-  client: one(clients, { fields: [factures.clientId], references: [clients.id] }),
-  devis: one(devis, { fields: [factures.devisId], references: [devis.id] }),
-  lignes: many(factureLignes),
-  relances: many(relances),
-}));
-
-export const factureLignesRelations = relations(factureLignes, ({ one }) => ({
-  facture: one(factures, { fields: [factureLignes.factureId], references: [factures.id] }),
-}));
-
-export const relancesRelations = relations(relances, ({ one }) => ({
-  facture: one(factures, { fields: [relances.factureId], references: [factures.id] }),
+export const savedVideosRelations = relations(savedVideos, ({ one }) => ({
+  video: one(videos, { fields: [savedVideos.videoId], references: [videos.id] }),
+  profile: one(profiles, { fields: [savedVideos.userId], references: [profiles.id] }),
 }));
 
 // -----------------------------------------------------------------------------
 // TYPES INFÉRÉS
 // -----------------------------------------------------------------------------
 export type Profile = typeof profiles.$inferSelect;
-export type Client = typeof clients.$inferSelect;
-export type NewClient = typeof clients.$inferInsert;
-export type Devis = typeof devis.$inferSelect;
-export type NewDevis = typeof devis.$inferInsert;
-export type DevisLigne = typeof devisLignes.$inferSelect;
-export type NewDevisLigne = typeof devisLignes.$inferInsert;
-export type Facture = typeof factures.$inferSelect;
-export type NewFacture = typeof factures.$inferInsert;
-export type FactureLigne = typeof factureLignes.$inferSelect;
-export type NewFactureLigne = typeof factureLignes.$inferInsert;
-export type Relance = typeof relances.$inferSelect;
+export type Video = typeof videos.$inferSelect;
+export type NewVideo = typeof videos.$inferInsert;
+export type Swipe = typeof swipes.$inferSelect;
+export type UserTagWeight = typeof userTagWeights.$inferSelect;
+export type SavedVideo = typeof savedVideos.$inferSelect;
 
 export type PlanTier = (typeof planTierEnum.enumValues)[number];
-export type DevisStatut = (typeof devisStatutEnum.enumValues)[number];
-export type FactureStatut = (typeof factureStatutEnum.enumValues)[number];
-export type RelanceStatut = (typeof relanceStatutEnum.enumValues)[number];
+export type SwipeDirection = (typeof swipeDirectionEnum.enumValues)[number];

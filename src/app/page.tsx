@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
-import { Tampon } from "@/components/ui/tampon";
 import { Logo } from "@/components/ui/logo";
 import { PlanCard } from "@/components/billing/plan-card";
 import { PLANS, PUBLIC_PLAN_TIERS } from "@/lib/constants";
@@ -12,7 +11,7 @@ export default function LandingPage() {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
           <Link href="/" className="flex items-center gap-2 font-display text-lg font-black tracking-tight">
             <Logo className="h-6 w-6" />
-            SoloJob
+            NextWatch
           </Link>
           <nav className="flex items-center gap-3">
             <Link href="/#pricing" className="text-sm text-muted hover:text-foreground">
@@ -32,24 +31,21 @@ export default function LandingPage() {
         <section className="relative overflow-hidden bg-brand px-4 py-24 text-brand-foreground">
           <div className="mx-auto max-w-3xl text-center">
             <p className="font-mono text-xs uppercase tracking-[0.2em] text-brand-foreground/60">
-              Pour artisans et indépendants solos
+              Découverte de vidéos YouTube
             </p>
             <h1 className="mx-auto mt-5 max-w-2xl font-display text-4xl font-black leading-[1.05] tracking-tight md:text-6xl">
-              Un devis en 60 secondes.
+              Une vidéo qui va vraiment te plaire, en 10 secondes.
               <br />
-              Pas en 20 minutes.
+              Pas en 20 minutes de scroll.
             </h1>
             <p className="mx-auto mt-6 max-w-xl text-brand-foreground/75">
-              Fais ton devis depuis le chantier, transforme-le en facture en un clic, encaisse en ligne. SoloJob
-              relance tes clients en retard de paiement à ta place.
+              Dis-nous ce qui te fait envie, swipe les propositions une par une, et regarde. NextWatch affine ce
+              qu&apos;il te montre à chaque swipe.
             </p>
             <div className="mt-8 flex items-center justify-center gap-4">
               <Link href="/signup" className={buttonVariants({ variant: "action", size: "lg" })}>
                 Commencer gratuitement
               </Link>
-              <span className="hidden sm:inline-block">
-                <Tampon variant="envoyee" />
-              </span>
             </div>
           </div>
         </section>
@@ -58,15 +54,15 @@ export default function LandingPage() {
           <div className="grid gap-8 sm:grid-cols-3">
             <div>
               <p className="font-display text-3xl font-black text-brand">1</p>
-              <p className="mt-2 text-sm text-muted">Tu fais le devis sur ton téléphone, entre deux chantiers.</p>
+              <p className="mt-2 text-sm text-muted">Tu choisis 2-3 centres d&apos;intérêt pour démarrer.</p>
             </div>
             <div>
               <p className="font-display text-3xl font-black text-brand">2</p>
-              <p className="mt-2 text-sm text-muted">Le client accepte, tu le transformes en facture en un clic.</p>
+              <p className="mt-2 text-sm text-muted">On te propose une vidéo à la fois — tu passes ou tu gardes.</p>
             </div>
             <div>
               <p className="font-display text-3xl font-black text-action">3</p>
-              <p className="mt-2 text-sm text-muted">Il paie en ligne — ou SoloJob le relance tout seul s&apos;il oublie.</p>
+              <p className="mt-2 text-sm text-muted">Tu regardes sur YouTube, et NextWatch affine les prochaines.</p>
             </div>
           </div>
         </section>
@@ -97,7 +93,7 @@ export default function LandingPage() {
       </main>
 
       <footer className="border-t border-card-border px-4 py-8 text-center text-sm text-muted">
-        <p>© {new Date().getFullYear()} SoloJob. Tous droits réservés.</p>
+        <p>© {new Date().getFullYear()} NextWatch. Tous droits réservés.</p>
         <nav className="mt-3 flex items-center justify-center gap-4 text-xs">
           <Link href="/mentions-legales" className="hover:text-foreground">
             Mentions légales

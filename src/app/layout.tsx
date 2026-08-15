@@ -23,9 +23,9 @@ const plexMono = IBM_Plex_Mono({
   weight: ["500", "600"],
 });
 
-const title = "SoloJob — Devis, factures et relances pour artisans solos";
+const title = "NextWatch — Trouve une vidéo YouTube qui va te plaire";
 const description =
-  "Crée tes devis, transforme-les en factures, encaisse en ligne et laisse SoloJob relancer tes clients en retard de paiement à ta place.";
+  "Dis-nous ce qui te fait envie, swipe les propositions une par une, et regarde. NextWatch affine ce qu'il te montre à chaque swipe.";
 const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 export const metadata: Metadata = {
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     title,
     description,
     url: appUrl,
-    siteName: "SoloJob",
+    siteName: "NextWatch",
     locale: "fr_FR",
     type: "website",
   },

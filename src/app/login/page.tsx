@@ -46,7 +46,7 @@ function LoginForm() {
   return (
     <AuthShell
       title="Bon retour"
-      subtitle="Connecte-toi pour gérer tes devis et factures"
+      subtitle="Connecte-toi pour retrouver tes découvertes"
       footer={
         <>
           Pas encore de compte ?{" "}

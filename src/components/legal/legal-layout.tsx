@@ -9,7 +9,7 @@ export function LegalLayout({ title, children }: { title: string; children: Reac
         <div className="mx-auto flex max-w-3xl items-center justify-between">
           <Link href="/" className="flex items-center gap-2 font-display text-lg font-black tracking-tight">
             <Logo className="h-6 w-6" />
-            SoloJob
+            NextWatch
           </Link>
           <Link href="/" className="text-sm text-muted hover:text-foreground">
             Retour au site

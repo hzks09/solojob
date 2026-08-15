@@ -2,9 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
 // Routes qui doivent rester ouvertes même quand SITE_PASSWORD est défini :
-// des services externes (Stripe, Vercel Cron) ou le client final d'un
-// artisan (lien de devis public) qui ne connaissent pas ce mot de passe.
-const PUBLIC_PATHS = ["/api/stripe/webhook", "/api/cron/relances", "/d/"];
+// des services externes (Stripe, Vercel Cron) qui ne connaissent pas ce mot
+// de passe.
+const PUBLIC_PATHS = ["/api/stripe/webhook", "/api/cron/"];
 
 function isSiteAuthorized(request: NextRequest): boolean {
   const password = process.env.SITE_PASSWORD;
@@ -24,7 +24,7 @@ export async function middleware(request: NextRequest) {
   if (!isPublicPath && !isSiteAuthorized(request)) {
     return new NextResponse("Authentification requise", {
       status: 401,
-      headers: { "WWW-Authenticate": 'Basic realm="SoloJob"' },
+      headers: { "WWW-Authenticate": 'Basic realm="NextWatch"' },
     });
   }
 

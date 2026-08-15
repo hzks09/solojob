@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import Stripe from "stripe";
 import { db } from "@/lib/db";
-import { factures, profiles, stripeWebhookEvents } from "@/lib/db/schema";
+import { profiles, stripeWebhookEvents } from "@/lib/db/schema";
 import { stripe, STRIPE_PRICE_IDS } from "@/lib/stripe/client";
 import type { PlanTier } from "@/lib/db/schema";
 
@@ -54,16 +54,7 @@ export async function POST(req: Request) {
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
 
-      // Paiement d'une facture via Payment Link (mode "payment", pas abonnement).
-      const factureId = session.metadata?.factureId;
-      if (session.mode === "payment" && factureId) {
-        await db
-          .update(factures)
-          .set({ statut: "payee", datePaiement: new Date(), updatedAt: new Date() })
-          .where(eq(factures.id, factureId));
-      }
-
-      // Souscription à un forfait Solo/Solo+.
+      // Souscription à un forfait payant.
       if (session.mode === "subscription" && session.subscription) {
         const sub = await stripe.subscriptions.retrieve(
           typeof session.subscription === "string" ? session.subscription : session.subscription.id

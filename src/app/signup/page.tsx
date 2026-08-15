@@ -55,7 +55,7 @@ export default function SignupPage() {
   return (
     <AuthShell
       title="Créer un compte"
-      subtitle="3 factures gratuites par mois pour commencer"
+      subtitle="20 découvertes gratuites par jour pour commencer"
       footer={
         <>
           Déjà un compte ?{" "}

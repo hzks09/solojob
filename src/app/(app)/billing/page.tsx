@@ -13,7 +13,7 @@ export default async function BillingPage() {
   return (
     <div>
       <h1 className="font-display text-2xl font-black tracking-tight">Abonnement</h1>
-      <p className="mt-1 text-sm text-muted">Gère ton forfait SoloJob</p>
+      <p className="mt-1 text-sm text-muted">Gère ton forfait NextWatch</p>
 
       <Card className="mt-8">
         <CardHeader>
@@ -22,8 +22,8 @@ export default async function BillingPage() {
           </CardTitle>
           <CardDescription>
             {currentPlan === "free"
-              ? `${PLANS.free.factureLimit} factures par mois`
-              : "Facturation illimitée"}
+              ? `${PLANS.free.dailyDiscoveryLimit} découvertes par jour`
+              : "Découvertes illimitées"}
           </CardDescription>
         </CardHeader>
         {current.profile?.stripeCustomerId && (

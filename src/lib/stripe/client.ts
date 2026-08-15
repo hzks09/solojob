@@ -9,7 +9,7 @@ export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? "sk_test_place
   typescript: true,
 });
 
-/** Price IDs des abonnements SoloJob (Solo / Solo+) — voir étape Stripe abonnements. */
+/** Price IDs des abonnements NextWatch (Gratuit / NextWatch+) — voir étape Stripe abonnements. */
 export const STRIPE_PRICE_IDS = {
   solo: process.env.STRIPE_PRICE_ID_SOLO ?? "",
   solo_plus: process.env.STRIPE_PRICE_ID_SOLO_PLUS ?? "",

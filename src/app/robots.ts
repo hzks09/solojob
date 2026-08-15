@@ -7,18 +7,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: [
-        "/api/",
-        "/dashboard",
-        "/clients",
-        "/devis",
-        "/factures",
-        "/settings",
-        "/billing",
-        // Liens publics de devis (financiers, accessibles uniquement via
-        // l'UUID) — jamais destinés à être indexés.
-        "/d/",
-      ],
+      disallow: ["/api/", "/dashboard", "/onboarding", "/liste", "/settings", "/billing"],
     },
     sitemap: `${appUrl}/sitemap.xml`,
   };

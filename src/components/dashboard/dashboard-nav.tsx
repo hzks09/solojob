@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { LayoutDashboard, Users, FileText, Receipt, Settings } from "lucide-react";
+import { LayoutDashboard, Bookmark, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,20 +11,16 @@ import { Logo } from "@/components/ui/logo";
 import type { PlanTier } from "@/lib/db/schema";
 
 const LINKS = [
-  { href: "/dashboard", label: "Tableau de bord" },
-  { href: "/clients", label: "Clients" },
-  { href: "/devis", label: "Devis" },
-  { href: "/factures", label: "Factures" },
+  { href: "/dashboard", label: "Découvrir" },
+  { href: "/liste", label: "Ma liste" },
   { href: "/billing", label: "Abonnement" },
   { href: "/settings", label: "Réglages" },
 ];
 
-/** Barre du bas sur mobile — plus facile à atteindre au pouce sur un chantier qu'un menu hamburger. */
+/** Barre du bas sur mobile — plus facile à atteindre au pouce qu'un menu hamburger. */
 const MOBILE_TABS = [
-  { href: "/dashboard", label: "Accueil", icon: LayoutDashboard },
-  { href: "/clients", label: "Clients", icon: Users },
-  { href: "/devis", label: "Devis", icon: FileText },
-  { href: "/factures", label: "Factures", icon: Receipt },
+  { href: "/dashboard", label: "Découvrir", icon: LayoutDashboard },
+  { href: "/liste", label: "Ma liste", icon: Bookmark },
   { href: "/settings", label: "Réglages", icon: Settings },
 ];
 
@@ -46,7 +42,7 @@ export function DashboardNav({ plan }: { plan?: PlanTier }) {
           <div className="flex items-center gap-8">
             <Link href="/dashboard" className="flex items-center gap-2 font-display text-base font-black tracking-tight">
               <Logo className="h-6 w-6" />
-              SoloJob
+              NextWatch
             </Link>
             <nav className="hidden items-center gap-1 md:flex">
               {LINKS.map((link) => (
