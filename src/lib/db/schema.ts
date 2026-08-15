@@ -41,6 +41,10 @@ export const profiles = pgTable("profiles", {
   // factures atterrissent directement dessus, jamais sur le compte plateforme.
   stripeConnectAccountId: text("stripe_connect_account_id").unique(),
   stripeConnectChargesEnabled: boolean("stripe_connect_charges_enabled").notNull().default(false),
+  // Solution transitoire tant que Stripe Connect n'est pas activé sur la
+  // plateforme : l'artisan encaisse directement via son propre PayPal.me,
+  // aucun argent ne transite par SoloJob.
+  paypalMeUsername: text("paypal_me_username"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tampon } from "@/components/ui/tampon";
@@ -10,10 +11,12 @@ import type { Facture } from "@/lib/db/schema";
 
 export function FactureActions({
   facture,
-  canAcceptOnlinePayment,
+  stripeConnectReady,
+  paypalMeUsername,
 }: {
   facture: Facture;
-  canAcceptOnlinePayment: boolean;
+  stripeConnectReady: boolean;
+  paypalMeUsername: string | null;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
@@ -31,6 +34,19 @@ export function FactureActions({
     } finally {
       setLoading(null);
     }
+  }
+
+  async function handlePaypalLink() {
+    if (!paypalMeUsername) return;
+    setLoading("link");
+    const url = `https://paypal.me/${paypalMeUsername}/${Number(facture.montantTotal).toFixed(2)}`;
+    await navigator.clipboard.writeText(url).catch(() => {});
+    if (facture.statut === "brouillon") {
+      await markFactureSentAction(facture.id);
+    }
+    setLoading(null);
+    toast.success("Lien PayPal copié.");
+    router.refresh();
   }
 
   async function handleMarkSent() {
@@ -77,14 +93,21 @@ export function FactureActions({
 
       {facture.statut !== "payee" && (
         <>
-          {canAcceptOnlinePayment ? (
+          {stripeConnectReady ? (
             <Button type="button" variant="outline" disabled={loading !== null} onClick={handleCreateLink}>
               {loading === "link" ? "Création..." : facture.stripePaymentLinkUrl ? "Copier le lien de paiement" : "Créer un lien de paiement"}
             </Button>
+          ) : paypalMeUsername ? (
+            <Button type="button" variant="outline" disabled={loading !== null} onClick={handlePaypalLink}>
+              {loading === "link" ? "..." : "Copier le lien PayPal"}
+            </Button>
           ) : (
-            <span className="flex items-center rounded-full border border-card-border px-3 py-1.5 text-xs text-muted">
-              Paiement en ligne bientôt disponible
-            </span>
+            <Link
+              href="/settings"
+              className="flex items-center rounded-full border border-card-border px-3 py-1.5 text-xs text-muted hover:text-foreground"
+            >
+              Configurer un lien de paiement
+            </Link>
           )}
           {facture.statut === "brouillon" && (
             <Button type="button" variant="ghost" disabled={loading !== null} onClick={handleMarkSent}>

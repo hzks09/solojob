@@ -1,0 +1,1 @@
+ALTER TABLE "profiles" ADD COLUMN "paypal_me_username" text;

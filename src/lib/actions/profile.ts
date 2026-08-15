@@ -40,3 +40,24 @@ export async function updateLogoUrlAction(logoUrl: string): Promise<ActionResult
   revalidatePath("/settings");
   return { success: true };
 }
+
+const PAYPAL_ME_REGEX = /^[a-zA-Z0-9._-]{1,50}$/;
+
+/** Solution transitoire d'encaissement en attendant Stripe Connect (voir facture-payment.ts). */
+export async function updatePaypalMeUsernameAction(username: string): Promise<ActionResult> {
+  const current = await getCurrentUser();
+  if (!current) return { success: false, error: "Non authentifié" };
+
+  const trimmed = username.trim().replace(/^@/, "");
+  if (trimmed && !PAYPAL_ME_REGEX.test(trimmed)) {
+    return { success: false, error: "Pseudo PayPal.me invalide (lettres, chiffres, points, tirets uniquement)" };
+  }
+
+  await db
+    .update(profiles)
+    .set({ paypalMeUsername: trimmed || null, updatedAt: new Date() })
+    .where(eq(profiles.id, current.authUser.id));
+
+  revalidatePath("/settings");
+  return { success: true };
+}

@@ -15,6 +15,13 @@
       "when": 1786616373206,
       "tag": "0001_short_ironclad",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786767981917,
+      "tag": "0002_next_post",
+      "breakpoints": true
     }
   ]
 }

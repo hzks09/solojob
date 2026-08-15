@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProfileForm } from "@/components/settings/profile-form";
 import { LogoUploader } from "@/components/settings/logo-uploader";
 import { StripeConnectCard } from "@/components/settings/stripe-connect-card";
-import { StripeTestPaymentCard } from "@/components/settings/stripe-test-payment-card";
+import { PaypalLinkCard } from "@/components/settings/paypal-link-card";
 
 export default async function SettingsPage() {
   const current = await getCurrentUser();
@@ -17,14 +17,12 @@ export default async function SettingsPage() {
         <CardHeader>
           <CardTitle>Paiements en ligne</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <PaypalLinkCard initialUsername={current.profile?.paypalMeUsername ?? null} />
           <StripeConnectCard
             hasAccount={Boolean(current.profile?.stripeConnectAccountId)}
             chargesEnabled={current.profile?.stripeConnectChargesEnabled ?? false}
           />
-          <div className="mt-4">
-            <StripeTestPaymentCard />
-          </div>
         </CardContent>
       </Card>
 
