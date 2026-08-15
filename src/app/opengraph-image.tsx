@@ -14,28 +14,35 @@ export default function OpengraphImage() {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          background: "#1d3557",
+          background: "#0a0a0c",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
           <div
             style={{
               display: "flex",
-              flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
               width: 120,
               height: 120,
               borderRadius: 26,
-              background: "#ffffff",
+              background: "#1a1a1e",
             }}
           >
-            <span style={{ fontSize: 56, fontWeight: 900, color: "#1d3557", lineHeight: 1 }}>SJ</span>
-            <span style={{ width: 60, height: 8, background: "#e85d25", borderRadius: 4, marginTop: 10 }} />
+            <div
+              style={{
+                width: 0,
+                height: 0,
+                borderTop: "26px solid transparent",
+                borderBottom: "26px solid transparent",
+                borderLeft: "42px solid #dc1030",
+                marginLeft: 10,
+              }}
+            />
           </div>
-          <span style={{ fontSize: 88, fontWeight: 900, color: "#ffffff" }}>NextWatch</span>
+          <span style={{ fontSize: 88, fontWeight: 900, color: "#f6f5f3" }}>NextWatch</span>
         </div>
-        <span style={{ marginTop: 36, fontSize: 34, color: "#ffffffbf" }}>
+        <span style={{ marginTop: 36, fontSize: 34, color: "#f6f5f3bf" }}>
           Trouve une vidéo YouTube qui va te plaire
         </span>
       </div>

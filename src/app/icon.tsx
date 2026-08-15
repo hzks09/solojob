@@ -13,20 +13,20 @@ export default function Icon() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#1d3557",
+          background: "#0c0c0e",
           borderRadius: 7,
         }}
       >
         <div
           style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
+            width: 0,
+            height: 0,
+            borderTop: "7px solid transparent",
+            borderBottom: "7px solid transparent",
+            borderLeft: "11px solid #dc1030",
+            marginLeft: 3,
           }}
-        >
-          <span style={{ fontSize: 17, fontWeight: 900, color: "#ffffff", lineHeight: 1 }}>SJ</span>
-          <span style={{ width: 15, height: 2, background: "#e85d25", borderRadius: 1, marginTop: 2 }} />
-        </div>
+        />
       </div>
     ),
     { ...size }

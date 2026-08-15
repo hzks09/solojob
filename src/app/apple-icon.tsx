@@ -13,19 +13,19 @@ export default function AppleIcon() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#1d3557",
+          background: "#0c0c0e",
         }}
       >
         <div
           style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
+            width: 0,
+            height: 0,
+            borderTop: "38px solid transparent",
+            borderBottom: "38px solid transparent",
+            borderLeft: "60px solid #dc1030",
+            marginLeft: 16,
           }}
-        >
-          <span style={{ fontSize: 92, fontWeight: 900, color: "#ffffff", lineHeight: 1 }}>SJ</span>
-          <span style={{ width: 78, height: 9, background: "#e85d25", borderRadius: 5, marginTop: 12 }} />
-        </div>
+        />
       </div>
     ),
     { ...size }

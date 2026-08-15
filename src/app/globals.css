@@ -1,55 +1,55 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f2f1ec; /* Papier */
-  --foreground: #14202b; /* Bâti */
-  --muted: #6d6f68; /* Gris outil, foncé pour lisibilité texte */
+  --background: #f6f5f3; /* Blanc chaud */
+  --foreground: #0c0c0e; /* Noir */
+  --muted: #6b6a6f;
   --card: #ffffff;
-  --card-border: #e2e0d5;
-  --brand: #1d3557; /* Bleu bâti — confiance */
+  --card-border: #e4e2df;
+  --brand: #0c0c0e; /* Noir — identité, structure */
   --brand-foreground: #ffffff;
-  --action: #e85d25; /* Orange chantier — action/urgence */
+  --action: #dc1030; /* Rouge — action/CTA */
   --action-foreground: #ffffff;
-  --accent: #2f6b4f; /* Vert validé */
+  --accent: #8a0e22; /* Rouge sombre — emphase secondaire */
   --accent-foreground: #ffffff;
-  --ring: #e85d25;
+  --ring: #dc1030;
   --glass-bg: rgba(255, 255, 255, 0.72);
-  --glass-border: rgba(20, 32, 43, 0.1);
+  --glass-border: rgba(12, 12, 14, 0.1);
 }
 
 :root[data-theme="dark"] {
-  --background: #10171f;
-  --foreground: #f2f1ec;
-  --muted: #a3a69c;
-  --card: #182530;
-  --card-border: #2b3c48;
-  --brand: #6f93bd;
-  --brand-foreground: #10171f;
-  --action: #ff7a3d;
-  --action-foreground: #10171f;
-  --accent: #5ea884;
-  --accent-foreground: #10171f;
-  --ring: #ff7a3d;
-  --glass-bg: rgba(24, 37, 48, 0.7);
-  --glass-border: rgba(255, 255, 255, 0.08);
+  --background: #0a0a0c;
+  --foreground: #f6f5f3;
+  --muted: #98979c;
+  --card: #17171a;
+  --card-border: #2b2a2e;
+  --brand: #f6f5f3;
+  --brand-foreground: #0a0a0c;
+  --action: #ff3346;
+  --action-foreground: #ffffff;
+  --accent: #ff6b7a;
+  --accent-foreground: #0a0a0c;
+  --ring: #ff3346;
+  --glass-bg: rgba(10, 10, 12, 0.72);
+  --glass-border: rgba(246, 245, 243, 0.08);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --background: #10171f;
-    --foreground: #f2f1ec;
-    --muted: #a3a69c;
-    --card: #182530;
-    --card-border: #2b3c48;
-    --brand: #6f93bd;
-    --brand-foreground: #10171f;
-    --action: #ff7a3d;
-    --action-foreground: #10171f;
-    --accent: #5ea884;
-    --accent-foreground: #10171f;
-    --ring: #ff7a3d;
-    --glass-bg: rgba(24, 37, 48, 0.7);
-    --glass-border: rgba(255, 255, 255, 0.08);
+    --background: #0a0a0c;
+    --foreground: #f6f5f3;
+    --muted: #98979c;
+    --card: #17171a;
+    --card-border: #2b2a2e;
+    --brand: #f6f5f3;
+    --brand-foreground: #0a0a0c;
+    --action: #ff3346;
+    --action-foreground: #ffffff;
+    --accent: #ff6b7a;
+    --accent-foreground: #0a0a0c;
+    --ring: #ff3346;
+    --glass-bg: rgba(10, 10, 12, 0.72);
+    --glass-border: rgba(246, 245, 243, 0.08);
   }
 }
 
@@ -71,8 +71,13 @@
   --font-mono: var(--font-plex-mono);
 }
 
-* {
-  border-color: var(--card-border);
+/* Dans une @layer base : sinon cette règle non calquée (unlayered) passe
+   devant toutes les classes utilitaires Tailwind (border-action, border-brand,
+   etc.) quelle que soit leur spécificité, à cause des cascade layers. */
+@layer base {
+  * {
+    border-color: var(--card-border);
+  }
 }
 
 body {
