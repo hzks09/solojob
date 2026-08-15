@@ -1,8 +1,16 @@
 "use server";
 
-import { and, arrayOverlaps, eq, gt, gte, lt, lte, notInArray, sql } from "drizzle-orm";
+import { and, arrayOverlaps, eq, gt, gte, inArray, lt, lte, notInArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { videos, swipes, userTagWeights, savedVideos, type Video, type SwipeReason } from "@/lib/db/schema";
+import {
+  videos,
+  swipes,
+  userTagWeights,
+  savedVideos,
+  favoriteChannels,
+  type Video,
+  type SwipeReason,
+} from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { PLANS } from "@/lib/constants";
 import { rateLimit } from "@/lib/rate-limit";
@@ -16,6 +24,8 @@ export interface DiscoveryFilters {
   language?: string;
   /** Mood(s)/sous-catégorie(s) — disponible pour tous les forfaits. */
   tags?: string[];
+  /** N'afficher que les vidéos des chaînes marquées favorites — disponible pour tous les forfaits. */
+  favoriteChannelsOnly?: boolean;
 }
 
 // Combien de vidéos les mieux notées entrent dans le tirage final — évite de
@@ -26,6 +36,11 @@ const LIKE_WEIGHT_DELTA = 1;
 const SKIP_WEIGHT_DELTA = -0.5;
 // Skip avec motif renseigné = signal beaucoup plus fiable qu'un skip silencieux.
 const SKIP_WITH_REASON_WEIGHT_DELTA = -1.5;
+// Bonus de score pour une vidéo dont la chaîne a été marquée favorite —
+// comparable en grandeur au poids initial d'un tag choisi à l'onboarding
+// (voir INITIAL_WEIGHT dans onboarding.ts), pour rester significatif sans
+// écraser complètement le score appris par tag.
+const FAVORITE_CHANNEL_SCORE_BONUS = 3;
 // Part des propositions qui ignorent complètement le score appris pour
 // piocher parmi les tags les moins explorés — sans ça, le score appris ne
 // fait que renforcer les tags choisis à l'onboarding et l'utilisateur ne
@@ -115,6 +130,18 @@ export async function getNextVideoAction(filters?: DiscoveryFilters, excludeVide
   const swipedIds = swipedRows.map((s) => s.videoId);
   const excludeIds = excludeVideoId ? [...swipedIds, excludeVideoId] : swipedIds;
 
+  const favoriteChannelRows = await db
+    .select({ channelId: favoriteChannels.channelId })
+    .from(favoriteChannels)
+    .where(eq(favoriteChannels.userId, userId));
+  const favoriteChannelIds = favoriteChannelRows.map((f) => f.channelId);
+
+  // Pas de chaîne favorite : rien à proposer plutôt qu'un `inArray` vide
+  // (qui ne matcherait jamais rien de toute façon, mais évite l'ambiguïté).
+  if (filters?.favoriteChannelsOnly && favoriteChannelIds.length === 0) {
+    return { status: "empty" };
+  }
+
   const conditions = [];
   if (excludeIds.length) conditions.push(notInArray(videos.id, excludeIds));
   if (filters?.durationBucket === "short") conditions.push(lt(videos.durationSeconds, 240));
@@ -123,6 +150,7 @@ export async function getNextVideoAction(filters?: DiscoveryFilters, excludeVide
   } else if (filters?.durationBucket === "long") conditions.push(gt(videos.durationSeconds, 1200));
   if (filters?.language) conditions.push(eq(videos.language, filters.language));
   if (filters?.tags?.length) conditions.push(arrayOverlaps(videos.tags, filters.tags));
+  if (filters?.favoriteChannelsOnly) conditions.push(inArray(videos.channelId, favoriteChannelIds));
 
   const pool = await db
     .select()
@@ -158,13 +186,18 @@ export async function getNextVideoAction(filters?: DiscoveryFilters, excludeVide
 
   const weights = await db.select().from(userTagWeights).where(eq(userTagWeights.userId, userId));
   const weightByTag = new Map(weights.map((w) => [w.tag, Number(w.weight)]));
+  const favoriteChannelIdSet = new Set(favoriteChannelIds);
 
-  // Score = somme des poids appris pour les tags de la vidéo + un peu
-  // d'aléatoire, pour éviter de boucler sur les mêmes catégories.
+  // Score = somme des poids appris pour les tags de la vidéo + bonus chaîne
+  // favorite + un peu d'aléatoire, pour éviter de boucler sur les mêmes
+  // catégories.
   const scored = pool
     .map((video) => ({
       video,
-      score: video.tags.reduce((sum, tag) => sum + (weightByTag.get(tag) ?? 0), 0) + Math.random() * 2,
+      score:
+        video.tags.reduce((sum, tag) => sum + (weightByTag.get(tag) ?? 0), 0) +
+        (video.channelId && favoriteChannelIdSet.has(video.channelId) ? FAVORITE_CHANNEL_SCORE_BONUS : 0) +
+        Math.random() * 2,
     }))
     .sort((a, b) => b.score - a.score);
 

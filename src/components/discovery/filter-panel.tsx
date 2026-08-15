@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { SlidersHorizontal } from "lucide-react";
+import { SlidersHorizontal, Star } from "lucide-react";
 import { MOOD_CATEGORIES } from "@/lib/youtube/moods";
 import { cn } from "@/lib/utils";
 import type { DiscoveryFilters, DurationBucket } from "@/lib/actions/discovery";
@@ -32,7 +32,10 @@ export function FilterPanel({
 }) {
   const [open, setOpen] = useState(false);
   const activeCount =
-    (filters.durationBucket ? 1 : 0) + (filters.language ? 1 : 0) + (filters.tags?.length ?? 0);
+    (filters.durationBucket ? 1 : 0) +
+    (filters.language ? 1 : 0) +
+    (filters.tags?.length ?? 0) +
+    (filters.favoriteChannelsOnly ? 1 : 0);
 
   function toggleTag(tag: string) {
     const current = filters.tags ?? [];
@@ -63,7 +66,21 @@ export function FilterPanel({
 
       {open && (
         <div className="mt-3 rounded-2xl border border-card-border bg-card p-4">
-          <div>
+          <button
+            type="button"
+            onClick={() => onChange({ ...filters, favoriteChannelsOnly: !filters.favoriteChannelsOnly || undefined })}
+            className={cn(
+              "flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors",
+              filters.favoriteChannelsOnly
+                ? "border-action bg-action/10 text-action"
+                : "border-card-border text-muted hover:text-foreground"
+            )}
+          >
+            <Star className={cn("h-4 w-4", filters.favoriteChannelsOnly && "fill-action")} />
+            Chaînes favorites uniquement
+          </button>
+
+          <div className="mt-4">
             <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted">
               Durée
               {!advancedFiltersAllowed && <span className="text-action">Loupick+</span>}

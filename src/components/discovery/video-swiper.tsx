@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { motion, type PanInfo } from "framer-motion";
-import { X, Heart, ExternalLink, ChevronDown } from "lucide-react";
+import { X, Heart, ExternalLink, ChevronDown, Star } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,8 +13,9 @@ import {
   type DiscoveryFilters,
   type NextVideoResult,
 } from "@/lib/actions/discovery";
+import { getFavoriteChannelIdsAction, toggleFavoriteChannelAction } from "@/lib/actions/channels";
 import type { SwipeReason } from "@/lib/db/schema";
-import { formatDuration } from "@/lib/utils";
+import { cn, formatDuration } from "@/lib/utils";
 import { FilterPanel } from "./filter-panel";
 
 const SWIPE_DISTANCE_THRESHOLD = 120;
@@ -43,6 +44,7 @@ export function VideoSwiper({
   const [loading, setLoading] = useState(false);
   const [flyDirection, setFlyDirection] = useState<"like" | "skip" | null>(null);
   const [reasonMenuOpen, setReasonMenuOpen] = useState(false);
+  const [favoriteChannelIds, setFavoriteChannelIds] = useState<Set<string>>(new Set());
   // `initialResult` vient déjà du serveur sans filtre — on ne veut pas
   // relancer un fetch identique juste après le premier rendu.
   const isFirstRender = useRef(true);
@@ -61,6 +63,10 @@ export function VideoSwiper({
       .catch(() => toast.error("Ça n'a pas marché. Réessaie."))
       .finally(() => setLoading(false));
   }, [filters]);
+
+  useEffect(() => {
+    getFavoriteChannelIdsAction().then((ids) => setFavoriteChannelIds(new Set(ids)));
+  }, []);
 
   useEffect(() => {
     if (result.status !== "ok") return;
@@ -100,6 +106,28 @@ export function VideoSwiper({
     } finally {
       setLoading(false);
       setFlyDirection(null);
+    }
+  }
+
+  async function handleToggleFavoriteChannel(channelId: string, channelTitle: string) {
+    // Optimiste : le retour serveur confirme juste ce qu'on affiche déjà.
+    setFavoriteChannelIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(channelId)) next.delete(channelId);
+      else next.add(channelId);
+      return next;
+    });
+
+    try {
+      await toggleFavoriteChannelAction(channelId, channelTitle);
+    } catch {
+      toast.error("Ça n'a pas marché. Réessaie.");
+      setFavoriteChannelIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(channelId)) next.delete(channelId);
+        else next.add(channelId);
+        return next;
+      });
     }
   }
 
@@ -227,7 +255,28 @@ export function VideoSwiper({
           </div>
           <CardContent className="pt-4">
             <p className="line-clamp-2 font-medium">{video.title}</p>
-            <p className="mt-1 text-sm text-muted">{video.channelTitle}</p>
+            <div className="mt-1 flex items-center gap-1.5">
+              <p className="text-sm text-muted">{video.channelTitle}</p>
+              {video.channelId && (
+                <button
+                  type="button"
+                  onClick={() => handleToggleFavoriteChannel(video.channelId!, video.channelTitle)}
+                  aria-label={
+                    favoriteChannelIds.has(video.channelId)
+                      ? "Retirer cette chaîne des favoris"
+                      : "Ajouter cette chaîne aux favoris"
+                  }
+                  className="text-muted transition-colors hover:text-action"
+                >
+                  <Star
+                    className={cn(
+                      "h-4 w-4",
+                      favoriteChannelIds.has(video.channelId) && "fill-action text-action"
+                    )}
+                  />
+                </button>
+              )}
+            </div>
             <a
               href={`https://www.youtube.com/watch?v=${video.youtubeVideoId}`}
               target="_blank"

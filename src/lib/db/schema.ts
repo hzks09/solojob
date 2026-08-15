@@ -50,6 +50,10 @@ export const videos = pgTable(
     youtubeVideoId: text("youtube_video_id").notNull().unique(),
     title: text("title").notNull(),
     thumbnailUrl: text("thumbnail_url").notNull(),
+    // Nullable : les vidéos mises en cache avant l'ajout de ce champ ne
+    // l'ont pas encore — se remplit au prochain rafraîchissement (cycle de
+    // 30 jours, voir plus bas) sans nécessiter de backfill dédié.
+    channelId: text("channel_id"),
     channelTitle: text("channel_title").notNull(),
     durationSeconds: integer("duration_seconds").notNull(),
     language: text("language"),
@@ -151,12 +155,32 @@ export const stripeWebhookEvents = pgTable("stripe_webhook_events", {
 });
 
 // -----------------------------------------------------------------------------
+// favorite_channels — chaînes YouTube marquées "préférées" par l'utilisateur
+// (bouton étoile sur la carte de swipe). `channelTitle` est dénormalisé pour
+// afficher la liste sans jointure ; `channelId` est l'identifiant stable
+// YouTube (contrairement au titre, qui peut changer).
+// -----------------------------------------------------------------------------
+export const favoriteChannels = pgTable(
+  "favorite_channels",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    channelId: text("channel_id").notNull(),
+    channelTitle: text("channel_title").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.channelId] })]
+);
+
+// -----------------------------------------------------------------------------
 // RELATIONS
 // -----------------------------------------------------------------------------
 export const profilesRelations = relations(profiles, ({ many }) => ({
   swipes: many(swipes),
   savedVideos: many(savedVideos),
   tagWeights: many(userTagWeights),
+  favoriteChannels: many(favoriteChannels),
 }));
 
 export const videosRelations = relations(videos, ({ many }) => ({
@@ -183,6 +207,7 @@ export type NewVideo = typeof videos.$inferInsert;
 export type Swipe = typeof swipes.$inferSelect;
 export type UserTagWeight = typeof userTagWeights.$inferSelect;
 export type SavedVideo = typeof savedVideos.$inferSelect;
+export type FavoriteChannel = typeof favoriteChannels.$inferSelect;
 
 export type PlanTier = (typeof planTierEnum.enumValues)[number];
 export type SwipeDirection = (typeof swipeDirectionEnum.enumValues)[number];

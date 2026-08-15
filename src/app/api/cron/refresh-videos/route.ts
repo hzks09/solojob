@@ -46,6 +46,7 @@ async function upsertVideos(items: YoutubeVideoItem[], extraTag?: string, subCat
         youtubeVideoId: item.id,
         title: item.snippet.title,
         thumbnailUrl: thumbnail,
+        channelId: item.snippet.channelId,
         channelTitle: item.snippet.channelTitle,
         durationSeconds,
         language: item.snippet.defaultAudioLanguage ?? null,
@@ -59,6 +60,7 @@ async function upsertVideos(items: YoutubeVideoItem[], extraTag?: string, subCat
         set: {
           title: item.snippet.title,
           thumbnailUrl: thumbnail,
+          channelId: item.snippet.channelId,
           durationSeconds,
           tags,
           lastRefreshedAt: now,
