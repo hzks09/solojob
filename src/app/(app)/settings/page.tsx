@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProfileForm } from "@/components/settings/profile-form";
 import { LogoUploader } from "@/components/settings/logo-uploader";
 import { StripeConnectCard } from "@/components/settings/stripe-connect-card";
+import { StripeTestPaymentCard } from "@/components/settings/stripe-test-payment-card";
 
 export default async function SettingsPage() {
   const current = await getCurrentUser();
@@ -21,6 +22,9 @@ export default async function SettingsPage() {
             hasAccount={Boolean(current.profile?.stripeConnectAccountId)}
             chargesEnabled={current.profile?.stripeConnectChargesEnabled ?? false}
           />
+          <div className="mt-4">
+            <StripeTestPaymentCard />
+          </div>
         </CardContent>
       </Card>
 
