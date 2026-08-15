@@ -13,7 +13,7 @@ export default async function BillingPage() {
   return (
     <div>
       <h1 className="font-display text-2xl font-black tracking-tight">Abonnement</h1>
-      <p className="mt-1 text-sm text-muted">Gère ton forfait NextWatch</p>
+      <p className="mt-1 text-sm text-muted">Gère ton forfait Loupick</p>
 
       <Card className="mt-8">
         <CardHeader>

@@ -24,7 +24,7 @@ export async function middleware(request: NextRequest) {
   if (!isPublicPath && !isSiteAuthorized(request)) {
     return new NextResponse("Authentification requise", {
       status: 401,
-      headers: { "WWW-Authenticate": 'Basic realm="NextWatch"' },
+      headers: { "WWW-Authenticate": 'Basic realm="Loupick"' },
     });
   }
 

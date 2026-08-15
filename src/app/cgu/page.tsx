@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalLayout, LegalSection } from "@/components/legal/legal-layout";
 
-export const metadata: Metadata = { title: "Conditions générales d'utilisation — NextWatch" };
+export const metadata: Metadata = { title: "Conditions générales d'utilisation — Loupick" };
 
 export default function CguPage() {
   return (
@@ -10,14 +10,14 @@ export default function CguPage() {
       <LegalSection title="1. Objet">
         <p>
           Les présentes conditions générales d&apos;utilisation (CGU) régissent l&apos;accès et l&apos;utilisation du
-          service NextWatch, un outil en ligne de découverte de vidéos YouTube par swipe, édité par [NOM DE
+          service Loupick, un outil en ligne de découverte de vidéos YouTube par swipe, édité par [NOM DE
           L&apos;ÉDITEUR].
         </p>
       </LegalSection>
 
       <LegalSection title="2. Accès au service">
         <p>
-          L&apos;accès à NextWatch nécessite la création d&apos;un compte avec une adresse e-mail valide. L&apos;
+          L&apos;accès à Loupick nécessite la création d&apos;un compte avec une adresse e-mail valide. L&apos;
           utilisation du service implique l&apos;acceptation des{" "}
           <Link href="https://www.youtube.com/t/terms" target="_blank" rel="noopener noreferrer" className="underline">
             conditions d&apos;utilisation de YouTube
@@ -35,7 +35,7 @@ export default function CguPage() {
 
       <LegalSection title="4. Forfaits et tarifs">
         <p>
-          NextWatch propose un forfait gratuit limité en nombre de découvertes par jour et un forfait payant illimité,
+          Loupick propose un forfait gratuit limité en nombre de découvertes par jour et un forfait payant illimité,
           dont le détail et les tarifs sont affichés sur la page tarifs du site. Les paiements d&apos;abonnement sont
           traités par Stripe. L&apos;utilisateur peut résilier son abonnement à tout moment depuis son espace de
           gestion.
@@ -44,7 +44,7 @@ export default function CguPage() {
 
       <LegalSection title="5. Contenu des vidéos">
         <p>
-          NextWatch ne fait que recommander des vidéos publiées par des tiers sur YouTube — il n&apos;héberge, ne
+          Loupick ne fait que recommander des vidéos publiées par des tiers sur YouTube — il n&apos;héberge, ne
           modifie ni ne contrôle leur contenu. L&apos;éditeur n&apos;est pas responsable du contenu des vidéos
           recommandées.
         </p>

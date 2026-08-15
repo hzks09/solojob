@@ -40,7 +40,7 @@ export default function OpengraphImage() {
               }}
             />
           </div>
-          <span style={{ fontSize: 88, fontWeight: 900, color: "#f6f5f3" }}>NextWatch</span>
+          <span style={{ fontSize: 88, fontWeight: 900, color: "#f6f5f3" }}>Loupick</span>
         </div>
         <span style={{ marginTop: 36, fontSize: 34, color: "#f6f5f3bf" }}>
           Trouve une vidéo YouTube qui va te plaire

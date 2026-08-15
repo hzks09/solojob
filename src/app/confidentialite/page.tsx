@@ -2,20 +2,20 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalLayout, LegalSection } from "@/components/legal/legal-layout";
 
-export const metadata: Metadata = { title: "Politique de confidentialité — NextWatch" };
+export const metadata: Metadata = { title: "Politique de confidentialité — Loupick" };
 
 export default function ConfidentialitePage() {
   return (
     <LegalLayout title="Politique de confidentialité">
       <LegalSection title="Responsable de traitement">
         <p>
-          Le responsable du traitement des données personnelles collectées via NextWatch est [NOM DE
+          Le responsable du traitement des données personnelles collectées via Loupick est [NOM DE
           L&apos;ÉDITEUR], [ADRESSE COMPLÈTE], joignable à [EMAIL DE CONTACT].
         </p>
       </LegalSection>
 
       <LegalSection title="Données collectées">
-        <p>Lors de l&apos;utilisation de NextWatch, nous collectons :</p>
+        <p>Lors de l&apos;utilisation de Loupick, nous collectons :</p>
         <ul className="list-disc space-y-1 pl-5">
           <li>les données de compte : e-mail, mot de passe (chiffré), nom ;</li>
           <li>
@@ -36,7 +36,7 @@ export default function ConfidentialitePage() {
       <LegalSection title="Base légale">
         <p>
           Le traitement repose sur l&apos;exécution du contrat qui nous lie à l&apos;utilisateur (fourniture du
-          service NextWatch) et sur ton consentement pour l&apos;apprentissage de tes préférences (swipes).
+          service Loupick) et sur ton consentement pour l&apos;apprentissage de tes préférences (swipes).
         </p>
       </LegalSection>
 
@@ -45,7 +45,7 @@ export default function ConfidentialitePage() {
         <ul className="list-disc space-y-1 pl-5">
           <li>Supabase (base de données, authentification) ;</li>
           <li>Vercel (hébergement de l&apos;application) ;</li>
-          <li>Stripe (paiement des abonnements NextWatch) ;</li>
+          <li>Stripe (paiement des abonnements Loupick) ;</li>
           <li>Google / YouTube (recommandation et lecture des vidéos — voir ci-dessous).</li>
         </ul>
         <p>Ces données ne sont jamais vendues ni transmises à des fins publicitaires.</p>
@@ -53,7 +53,7 @@ export default function ConfidentialitePage() {
 
       <LegalSection title="Service tiers — YouTube">
         <p>
-          NextWatch s&apos;appuie sur l&apos;API YouTube Data pour recommander des vidéos. Aucune préférence
+          Loupick s&apos;appuie sur l&apos;API YouTube Data pour recommander des vidéos. Aucune préférence
           individuelle (swipes, tags appris) n&apos;est transmise à Google — seules des requêtes de recherche
           génériques par catégorie sont effectuées, indépendamment de tes données personnelles. L&apos;usage de
           l&apos;API YouTube est soumis aux{" "}
@@ -94,7 +94,7 @@ export default function ConfidentialitePage() {
 
       <LegalSection title="Cookies">
         <p>
-          NextWatch utilise uniquement des cookies strictement nécessaires au fonctionnement du service (maintien de
+          Loupick utilise uniquement des cookies strictement nécessaires au fonctionnement du service (maintien de
           la session de connexion via Supabase Auth). Aucun cookie publicitaire ou de mesure d&apos;audience tiers
           n&apos;est utilisé à ce jour.
         </p>

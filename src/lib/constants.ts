@@ -22,17 +22,17 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
   },
   solo: {
     tier: "solo",
-    name: "NextWatch+",
+    name: "Loupick+",
     priceMonthly: 4,
     dailyDiscoveryLimit: "illimite",
     advancedFilters: true,
     features: ["Découvertes illimitées", "Filtres avancés (durée, langue)", "Liste à regarder plus tard"],
   },
-  // Dormant — pas de forfait au-dessus de NextWatch+ pour l'instant, masqué
-  // de l'affichage public (voir PUBLIC_PLAN_TIERS) comme du temps de SoloJob.
+  // Dormant — pas de forfait au-dessus de Loupick+ pour l'instant, masqué
+  // de l'affichage public (voir PUBLIC_PLAN_TIERS).
   solo_plus: {
     tier: "solo_plus",
-    name: "NextWatch+",
+    name: "Loupick+",
     priceMonthly: 4,
     dailyDiscoveryLimit: "illimite",
     advancedFilters: true,

@@ -1,11 +1,22 @@
 "use server";
 
-import { and, eq, notInArray, sql } from "drizzle-orm";
+import { and, arrayOverlaps, eq, gt, gte, lt, lte, notInArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { videos, swipes, userTagWeights, savedVideos, type Video } from "@/lib/db/schema";
+import { videos, swipes, userTagWeights, savedVideos, type Video, type SwipeReason } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { PLANS } from "@/lib/constants";
 import { rateLimit } from "@/lib/rate-limit";
+
+export type DurationBucket = "short" | "medium" | "long";
+
+export interface DiscoveryFilters {
+  /** Filtre avancé (forfait payant) : < 4 min / 4-20 min / > 20 min. */
+  durationBucket?: DurationBucket;
+  /** Filtre avancé (forfait payant), basé sur `videos.language`. */
+  language?: string;
+  /** Mood(s)/sous-catégorie(s) — disponible pour tous les forfaits. */
+  tags?: string[];
+}
 
 // Combien de vidéos les mieux notées entrent dans le tirage final — évite de
 // toujours proposer strictement la mieux notée, laisse un peu de diversité.
@@ -13,11 +24,23 @@ const CANDIDATE_POOL_SIZE = 30;
 const CANDIDATE_FETCH_LIMIT = 200;
 const LIKE_WEIGHT_DELTA = 1;
 const SKIP_WEIGHT_DELTA = -0.5;
+// Skip avec motif renseigné = signal beaucoup plus fiable qu'un skip silencieux.
+const SKIP_WITH_REASON_WEIGHT_DELTA = -1.5;
 // Part des propositions qui ignorent complètement le score appris pour
 // piocher parmi les tags les moins explorés — sans ça, le score appris ne
 // fait que renforcer les tags choisis à l'onboarding et l'utilisateur ne
-// découvre jamais de nouvelles catégories.
-const EXPLORATION_RATE = 0.18;
+// découvre jamais de nouvelles catégories. Plus élevée pour un nouveau
+// compte (peu de signal appris, donc plus de découverte), puis se resserre
+// linéairement jusqu'au seuil ci-dessous une fois le goût mieux cerné.
+const EXPLORATION_RATE_NEW = 0.3;
+const EXPLORATION_RATE_ESTABLISHED = 0.12;
+const EXPLORATION_ADAPTIVE_THRESHOLD_SWIPES = 50;
+
+function explorationRateFor(totalSwipes: number): number {
+  if (totalSwipes >= EXPLORATION_ADAPTIVE_THRESHOLD_SWIPES) return EXPLORATION_RATE_ESTABLISHED;
+  const progress = totalSwipes / EXPLORATION_ADAPTIVE_THRESHOLD_SWIPES;
+  return EXPLORATION_RATE_NEW + (EXPLORATION_RATE_ESTABLISHED - EXPLORATION_RATE_NEW) * progress;
+}
 
 function startOfToday() {
   const d = new Date();
@@ -28,8 +51,7 @@ function startOfToday() {
 /**
  * Découvertes déjà servies aujourd'hui pour le forfait Gratuit — compte les
  * swipes existants sur une fenêtre temporelle plutôt que de maintenir un
- * compteur dédié (même logique que l'ancienne limite de factures/mois).
- * `null` = forfait illimité, rien à vérifier.
+ * compteur dédié. `null` = forfait illimité, rien à vérifier.
  */
 export async function getDailyDiscoveryUsage(): Promise<{ used: number; limit: number } | null> {
   const current = await getCurrentUser();
@@ -52,10 +74,16 @@ export type NextVideoResult =
   | { status: "limit_reached" }
   | { status: "empty" }
   | { status: "unauthenticated" }
-  | { status: "rate_limited" };
+  | { status: "rate_limited" }
+  | { status: "filters_require_upgrade" };
 
-/** Pioche la prochaine vidéo à proposer, jamais d'appel à l'API YouTube ici. */
-export async function getNextVideoAction(): Promise<NextVideoResult> {
+/**
+ * Pioche la prochaine vidéo à proposer, jamais d'appel à l'API YouTube ici.
+ * `excludeVideoId` sert au préchargement en arrière-plan : la vidéo affichée
+ * à l'écran n'a pas encore été swipée (donc pas encore dans l'historique) et
+ * ne doit pas être proposée une seconde fois par le préchargement.
+ */
+export async function getNextVideoAction(filters?: DiscoveryFilters, excludeVideoId?: string): Promise<NextVideoResult> {
   const current = await getCurrentUser();
   if (!current) return { status: "unauthenticated" };
   const userId = current.authUser.id;
@@ -64,6 +92,14 @@ export async function getNextVideoAction(): Promise<NextVideoResult> {
   // boucle en dehors du rythme normal d'un swipe.
   if (!rateLimit(`discovery-next:${userId}`, 60, 60_000).success) {
     return { status: "rate_limited" };
+  }
+
+  // Durée/langue sont réservés au forfait payant — mood/sous-catégorie
+  // restent disponibles pour tout le monde. Message explicite plutôt qu'un
+  // blocage silencieux si un compte Gratuit tente d'y accéder.
+  const planConfig = PLANS[current.profile?.plan ?? "free"];
+  if (!planConfig.advancedFilters && (filters?.durationBucket || filters?.language)) {
+    return { status: "filters_require_upgrade" };
   }
 
   const usage = await getDailyDiscoveryUsage();
@@ -77,16 +113,28 @@ export async function getNextVideoAction(): Promise<NextVideoResult> {
     .innerJoin(videos, eq(swipes.videoId, videos.id))
     .where(eq(swipes.userId, userId));
   const swipedIds = swipedRows.map((s) => s.videoId);
+  const excludeIds = excludeVideoId ? [...swipedIds, excludeVideoId] : swipedIds;
 
-  const pool = swipedIds.length
-    ? await db.select().from(videos).where(notInArray(videos.id, swipedIds)).limit(CANDIDATE_FETCH_LIMIT)
-    : await db.select().from(videos).limit(CANDIDATE_FETCH_LIMIT);
+  const conditions = [];
+  if (excludeIds.length) conditions.push(notInArray(videos.id, excludeIds));
+  if (filters?.durationBucket === "short") conditions.push(lt(videos.durationSeconds, 240));
+  else if (filters?.durationBucket === "medium") {
+    conditions.push(and(gte(videos.durationSeconds, 240), lte(videos.durationSeconds, 1200)));
+  } else if (filters?.durationBucket === "long") conditions.push(gt(videos.durationSeconds, 1200));
+  if (filters?.language) conditions.push(eq(videos.language, filters.language));
+  if (filters?.tags?.length) conditions.push(arrayOverlaps(videos.tags, filters.tags));
+
+  const pool = await db
+    .select()
+    .from(videos)
+    .where(conditions.length ? and(...conditions) : undefined)
+    .limit(CANDIDATE_FETCH_LIMIT);
 
   if (pool.length === 0) return { status: "empty" };
 
   // Exploration epsilon-greedy : une partie des propositions ignore le score
   // appris et pioche au hasard parmi les tags les moins swipés jusqu'ici.
-  if (Math.random() < EXPLORATION_RATE) {
+  if (Math.random() < explorationRateFor(swipedRows.length)) {
     const tagSwipeCounts = new Map<string, number>();
     for (const row of swipedRows) {
       for (const tag of row.tags) tagSwipeCounts.set(tag, (tagSwipeCounts.get(tag) ?? 0) + 1);
@@ -130,7 +178,11 @@ export async function getNextVideoAction(): Promise<NextVideoResult> {
   };
 }
 
-export async function recordSwipeAction(videoId: string, direction: "like" | "skip"): Promise<{ success: boolean }> {
+export async function recordSwipeAction(
+  videoId: string,
+  direction: "like" | "skip",
+  reason?: SwipeReason
+): Promise<{ success: boolean }> {
   const current = await getCurrentUser();
   if (!current) throw new Error("Non authentifié");
   const userId = current.authUser.id;
@@ -151,7 +203,7 @@ export async function recordSwipeAction(videoId: string, direction: "like" | "sk
   const [video] = await db.select().from(videos).where(eq(videos.id, videoId)).limit(1);
   if (!video) throw new Error("Vidéo introuvable");
 
-  await db.insert(swipes).values({ userId, videoId, direction });
+  await db.insert(swipes).values({ userId, videoId, direction, reason: direction === "skip" ? reason : undefined });
 
   // "Garder" = signal de préférence ET ajout direct à la liste "à regarder
   // plus tard" — pas d'action séparée sur l'écran de swipe.
@@ -159,7 +211,8 @@ export async function recordSwipeAction(videoId: string, direction: "like" | "sk
     await db.insert(savedVideos).values({ userId, videoId }).onConflictDoNothing();
   }
 
-  const delta = direction === "like" ? LIKE_WEIGHT_DELTA : SKIP_WEIGHT_DELTA;
+  const delta =
+    direction === "like" ? LIKE_WEIGHT_DELTA : reason ? SKIP_WITH_REASON_WEIGHT_DELTA : SKIP_WEIGHT_DELTA;
   for (const tag of video.tags) {
     await db
       .insert(userTagWeights)

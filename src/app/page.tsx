@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 const STEPS = [
   { n: "1", text: "Tu choisis 2-3 centres d'intérêt pour démarrer." },
   { n: "2", text: "On te propose une vidéo à la fois — tu passes ou tu gardes." },
-  { n: "3", text: "Tu regardes sur YouTube, NextWatch affine les prochaines." },
+  { n: "3", text: "Tu regardes sur YouTube, Loupick affine les prochaines." },
 ];
 
 export default function LandingPage() {
@@ -17,7 +17,7 @@ export default function LandingPage() {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
           <Link href="/" className="flex items-center gap-2 font-display text-lg font-black tracking-tight">
             <Logo className="h-8 w-8" />
-            NextWatch
+            Loupick
           </Link>
           <nav className="flex items-center gap-3">
             <Link href="/#pricing" className="hidden text-sm text-muted hover:text-foreground sm:inline">
@@ -58,7 +58,7 @@ export default function LandingPage() {
                 Pas 20 minutes de scroll.
               </p>
               <p className="mt-6 max-w-md text-brand-foreground/70">
-                Dis-nous ce qui te fait envie, swipe les propositions une par une, et regarde. NextWatch affine ce
+                Dis-nous ce qui te fait envie, swipe les propositions une par une, et regarde. Loupick affine ce
                 qu&apos;il te montre à chaque swipe.
               </p>
               <div className="mt-8 flex flex-wrap items-center gap-5">
@@ -174,7 +174,7 @@ export default function LandingPage() {
       </main>
 
       <footer className="border-t border-card-border px-4 py-8 text-center text-sm text-muted">
-        <p>© {new Date().getFullYear()} NextWatch. Tous droits réservés.</p>
+        <p>© {new Date().getFullYear()} Loupick. Tous droits réservés.</p>
         <nav className="mt-3 flex items-center justify-center gap-4 text-xs">
           <Link href="/mentions-legales" className="hover:text-foreground">
             Mentions légales

@@ -22,6 +22,7 @@ const id = () => uuid("id").primaryKey().defaultRandom();
 // -----------------------------------------------------------------------------
 export const planTierEnum = pgEnum("plan_tier", ["free", "solo", "solo_plus"]);
 export const swipeDirectionEnum = pgEnum("swipe_direction", ["like", "skip"]);
+export const swipeReasonEnum = pgEnum("swipe_reason", ["already_seen", "not_my_style", "boring_channel"]);
 
 // -----------------------------------------------------------------------------
 // profiles — extension de auth.users (créé par trigger à l'inscription)
@@ -93,6 +94,9 @@ export const swipes = pgTable(
       .notNull()
       .references(() => videos.id, { onDelete: "cascade" }),
     direction: swipeDirectionEnum("direction").notNull(),
+    // Motif optionnel renseigné uniquement sur un "skip" via le menu de
+    // feedback secondaire — un skip sans motif reste juste `null`.
+    reason: swipeReasonEnum("reason"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -182,3 +186,4 @@ export type SavedVideo = typeof savedVideos.$inferSelect;
 
 export type PlanTier = (typeof planTierEnum.enumValues)[number];
 export type SwipeDirection = (typeof swipeDirectionEnum.enumValues)[number];
+export type SwipeReason = (typeof swipeReasonEnum.enumValues)[number];

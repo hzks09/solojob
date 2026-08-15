@@ -9,6 +9,10 @@ import { MOOD_CATEGORIES } from "@/lib/youtube/moods";
 const INITIAL_WEIGHT = "2";
 const MIN_TAGS = 2;
 
+const ALL_VALID_TAGS = new Set(
+  MOOD_CATEGORIES.flatMap((mood) => [mood.tag, ...mood.subCategories.map((sub) => sub.tag)])
+);
+
 /** Vrai dès que l'utilisateur a au moins un poids de tag — onboarding déjà fait. */
 export async function hasCompletedOnboarding(): Promise<boolean> {
   const current = await getCurrentUser();
@@ -23,11 +27,12 @@ export async function hasCompletedOnboarding(): Promise<boolean> {
   return Boolean(row);
 }
 
+/** `tags` peut mélanger moods larges (ex. "musique") et sous-catégories (ex. "lofi"). */
 export async function completeOnboardingAction(tags: string[]): Promise<{ success: boolean; error?: string }> {
   const current = await getCurrentUser();
   if (!current) return { success: false, error: "Non authentifié" };
 
-  const validTags = tags.filter((t) => MOOD_CATEGORIES.some((mood) => mood.tag === t));
+  const validTags = tags.filter((t) => ALL_VALID_TAGS.has(t));
   if (validTags.length < MIN_TAGS) {
     return { success: false, error: `Choisis au moins ${MIN_TAGS} catégories` };
   }

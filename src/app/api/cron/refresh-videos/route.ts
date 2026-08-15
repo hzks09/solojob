@@ -3,7 +3,7 @@ import { eq, inArray, lt } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { moodSearchCursors, videos } from "@/lib/db/schema";
 import { searchVideos, fetchVideoDetails, parseIsoDuration, type YoutubeVideoItem } from "@/lib/youtube/client";
-import { MOOD_CATEGORIES } from "@/lib/youtube/moods";
+import { MOOD_CATEGORIES, type SubCategory } from "@/lib/youtube/moods";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 const SEARCH_RESULTS_PER_MOOD = 25;
@@ -21,13 +21,23 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return out;
 }
 
-async function upsertVideos(items: YoutubeVideoItem[], extraTag?: string) {
+/**
+ * Détecte les sous-catégories d'un mood dans le titre/les tags YouTube d'une
+ * vidéo — simple correspondance de mots-clés, aucun appel API supplémentaire.
+ */
+function detectSubTags(item: YoutubeVideoItem, subCategories: SubCategory[]): string[] {
+  const haystack = `${item.snippet.title} ${(item.snippet.tags ?? []).join(" ")}`.toLowerCase();
+  return subCategories.filter((sub) => sub.matchKeywords.some((kw) => haystack.includes(kw.toLowerCase()))).map((sub) => sub.tag);
+}
+
+async function upsertVideos(items: YoutubeVideoItem[], extraTag?: string, subCategories: SubCategory[] = []) {
   for (const item of items) {
     const thumbnail =
       item.snippet.thumbnails.high?.url ?? item.snippet.thumbnails.medium?.url ?? item.snippet.thumbnails.default?.url ?? "";
     const durationSeconds = parseIsoDuration(item.contentDetails.duration);
     const baseTags = item.snippet.tags ?? [];
-    const tags = extraTag && !baseTags.includes(extraTag) ? [extraTag, ...baseTags] : baseTags;
+    const subTags = detectSubTags(item, subCategories);
+    const tags = Array.from(new Set([...(extraTag ? [extraTag] : []), ...subTags, ...baseTags]));
     const now = new Date();
 
     await db
@@ -116,7 +126,7 @@ export async function GET(req: Request) {
 
       const details = await fetchVideoDetails(videoIds);
       videosListCalls++;
-      await upsertVideos(details, mood.tag);
+      await upsertVideos(details, mood.tag, mood.subCategories);
       videosUpserted += details.length;
     } catch (err) {
       errors.push(`recherche "${mood.tag}": ${err instanceof Error ? err.message : "erreur inconnue"}`);

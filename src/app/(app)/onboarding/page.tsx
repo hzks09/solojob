@@ -34,24 +34,42 @@ export default function OnboardingPage() {
     <div className="mx-auto max-w-lg py-6 text-center">
       <h1 className="font-display text-2xl font-black tracking-tight">Qu&apos;est-ce qui te plaît ?</h1>
       <p className="mt-2 text-sm text-muted">
-        Choisis 2-3 catégories pour démarrer — on affine à chaque swipe ensuite.
+        Choisis 2-3 catégories pour démarrer — précise avec une sous-catégorie si tu sais déjà ce que tu aimes.
       </p>
 
-      <div className="mt-8 grid grid-cols-2 gap-3">
+      <div className="mt-8 space-y-5 text-left">
         {MOOD_CATEGORIES.map((mood) => (
-          <button
-            key={mood.tag}
-            type="button"
-            onClick={() => toggle(mood.tag)}
-            className={cn(
-              "rounded-xl border-2 px-4 py-4 text-sm font-medium transition-colors",
-              selected.includes(mood.tag)
-                ? "border-action bg-action/10 text-action"
-                : "border-card-border text-muted hover:text-foreground"
-            )}
-          >
-            {mood.label}
-          </button>
+          <div key={mood.tag}>
+            <button
+              type="button"
+              onClick={() => toggle(mood.tag)}
+              className={cn(
+                "w-full rounded-xl border-2 px-4 py-3 text-sm font-medium transition-colors",
+                selected.includes(mood.tag)
+                  ? "border-action bg-action/10 text-action"
+                  : "border-card-border text-muted hover:text-foreground"
+              )}
+            >
+              {mood.label}
+            </button>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {mood.subCategories.map((sub) => (
+                <button
+                  key={sub.tag}
+                  type="button"
+                  onClick={() => toggle(sub.tag)}
+                  className={cn(
+                    "rounded-full border px-3 py-1 text-xs transition-colors",
+                    selected.includes(sub.tag)
+                      ? "border-action bg-action/10 text-action"
+                      : "border-card-border text-muted hover:text-foreground"
+                  )}
+                >
+                  {sub.label}
+                </button>
+              ))}
+            </div>
+          </div>
         ))}
       </div>
 

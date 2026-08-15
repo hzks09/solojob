@@ -42,7 +42,7 @@ export function DashboardNav({ plan }: { plan?: PlanTier }) {
           <div className="flex items-center gap-8">
             <Link href="/dashboard" className="flex items-center gap-2 font-display text-base font-black tracking-tight">
               <Logo className="h-6 w-6" />
-              NextWatch
+              Loupick
             </Link>
             <nav className="hidden items-center gap-1 md:flex">
               {LINKS.map((link) => (

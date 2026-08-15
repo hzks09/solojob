@@ -26,7 +26,7 @@ export function AuthShell({
       <div className="w-full max-w-md">
         <Link href="/" className="mb-8 flex items-center justify-center gap-2 font-display text-lg font-black tracking-tight">
           <Logo className="h-8 w-8" />
-          NextWatch
+          Loupick
         </Link>
         <div className="glass rounded-3xl p-8 shadow-xl">
           <div className="mb-6 text-center">
