@@ -17,6 +17,10 @@ import {
 type ActionResult = { success: true } | { success: false; error: string };
 
 const RATE_LIMIT_MESSAGE = "Trop de tentatives, réessaie dans une minute.";
+// Un throw non intercepté depuis une Server Action fait planter toute la page
+// (écran d'erreur générique) au lieu d'un simple message côté formulaire —
+// chaque appel réseau vers l'API Auth Supabase ci-dessous est donc protégé.
+const NETWORK_ERROR_MESSAGE = "Problème de connexion au service, réessaie dans quelques secondes.";
 
 /** 5 tentatives / minute, par IP + e-mail quand disponible — anti-bourrinage sur l'authentification. */
 async function checkAuthRateLimit(scope: string, email?: string) {
@@ -35,8 +39,12 @@ export async function loginAction(input: LoginInput): Promise<ActionResult> {
   if (!limit.success) return { success: false, error: RATE_LIMIT_MESSAGE };
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword(parsed.data);
-  if (error) return { success: false, error: "E-mail ou mot de passe incorrect" };
+  try {
+    const { error } = await supabase.auth.signInWithPassword(parsed.data);
+    if (error) return { success: false, error: "E-mail ou mot de passe incorrect" };
+  } catch {
+    return { success: false, error: NETWORK_ERROR_MESSAGE };
+  }
 
   return { success: true };
 }
@@ -52,20 +60,24 @@ export async function signupAction(input: RegisterInput): Promise<ActionResult> 
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const supabase = await createClient();
-  const { error } = await supabase.auth.signUp({
-    email: parsed.data.email,
-    password: parsed.data.password,
-    options: {
-      data: { full_name: parsed.data.name },
-      emailRedirectTo: `${appUrl}/auth/callback?type=signup`,
-    },
-  });
+  try {
+    const { error } = await supabase.auth.signUp({
+      email: parsed.data.email,
+      password: parsed.data.password,
+      options: {
+        data: { full_name: parsed.data.name },
+        emailRedirectTo: `${appUrl}/auth/callback?type=signup`,
+      },
+    });
 
-  if (error) {
-    return {
-      success: false,
-      error: error.message === "User already registered" ? "Un compte existe déjà avec cet e-mail" : error.message,
-    };
+    if (error) {
+      return {
+        success: false,
+        error: error.message === "User already registered" ? "Un compte existe déjà avec cet e-mail" : error.message,
+      };
+    }
+  } catch {
+    return { success: false, error: NETWORK_ERROR_MESSAGE };
   }
   return { success: true };
 }
@@ -81,9 +93,13 @@ export async function forgotPasswordAction(input: ForgotPasswordInput): Promise<
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const supabase = await createClient();
-  await supabase.auth.resetPasswordForEmail(parsed.data.email, {
-    redirectTo: `${appUrl}/auth/callback?next=/reset-password`,
-  });
+  try {
+    await supabase.auth.resetPasswordForEmail(parsed.data.email, {
+      redirectTo: `${appUrl}/auth/callback?next=/reset-password`,
+    });
+  } catch {
+    return { success: false, error: NETWORK_ERROR_MESSAGE };
+  }
 
   // Toujours succès côté UI (anti-énumération) — Supabase ne révèle pas si l'email existe.
   return { success: true };
@@ -99,8 +115,12 @@ export async function resetPasswordAction(input: ResetPasswordInput): Promise<Ac
   if (!limit.success) return { success: false, error: RATE_LIMIT_MESSAGE };
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
-  if (error) return { success: false, error: error.message };
+  try {
+    const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
+    if (error) return { success: false, error: error.message };
+  } catch {
+    return { success: false, error: NETWORK_ERROR_MESSAGE };
+  }
 
   return { success: true };
 }

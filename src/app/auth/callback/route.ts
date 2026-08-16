@@ -15,16 +15,21 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = await createClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) {
-      const response = NextResponse.redirect(`${origin}${next}`);
-      // Cookie court terme lu par ConfirmedToast (voir (app)/layout.tsx) — évite
-      // de propager un paramètre `?confirmed=1` qui se perdrait si la page
-      // suivante redirige elle-même (ex. dashboard -> onboarding).
-      if (type === "signup") {
-        response.cookies.set("just_confirmed", "1", { path: "/", maxAge: 30 });
+    try {
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      if (!error) {
+        const response = NextResponse.redirect(`${origin}${next}`);
+        // Cookie court terme lu par ConfirmedToast (voir (app)/layout.tsx) — évite
+        // de propager un paramètre `?confirmed=1` qui se perdrait si la page
+        // suivante redirige elle-même (ex. dashboard -> onboarding).
+        if (type === "signup") {
+          response.cookies.set("just_confirmed", "1", { path: "/", maxAge: 30 });
+        }
+        return response;
       }
-      return response;
+    } catch {
+      // Un blip réseau vers l'API Auth ne doit pas produire une 500 brute —
+      // même repli que le lien invalide/expiré ci-dessous.
     }
   }
 
