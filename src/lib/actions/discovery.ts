@@ -1,6 +1,6 @@
 "use server";
 
-import { and, arrayOverlaps, eq, gt, gte, inArray, lt, lte, notInArray, sql } from "drizzle-orm";
+import { and, arrayOverlaps, eq, gt, gte, ilike, inArray, lt, lte, notInArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   videos,
@@ -50,6 +50,12 @@ const FAVORITE_CHANNEL_SCORE_BONUS = 3;
 const EXPLORATION_RATE_NEW = 0.3;
 const EXPLORATION_RATE_ESTABLISHED = 0.12;
 const EXPLORATION_ADAPTIVE_THRESHOLD_SWIPES = 50;
+// Fenêtre utilisée pour le calcul "déjà vu" et le comptage de tags explorés —
+// évite de charger tout l'historique de swipes à chaque appel (voir
+// idx_swipes_user_created). Le poids appris par tag (userTagWeights, jamais
+// purgé) capture déjà le signal à long terme ; cette fenêtre récente sert
+// uniquement à éviter de reproposer une vidéo vue récemment.
+const RECENT_SWIPE_LOOKBACK_DAYS = 60;
 
 function explorationRateFor(totalSwipes: number): number {
   if (totalSwipes >= EXPLORATION_ADAPTIVE_THRESHOLD_SWIPES) return EXPLORATION_RATE_ESTABLISHED;
@@ -122,11 +128,12 @@ export async function getNextVideoAction(filters?: DiscoveryFilters, excludeVide
     return { status: "limit_reached" };
   }
 
+  const recentSwipeCutoff = new Date(Date.now() - RECENT_SWIPE_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
   const swipedRows = await db
     .select({ videoId: swipes.videoId, tags: videos.tags })
     .from(swipes)
     .innerJoin(videos, eq(swipes.videoId, videos.id))
-    .where(eq(swipes.userId, userId));
+    .where(and(eq(swipes.userId, userId), gte(swipes.createdAt, recentSwipeCutoff)));
   const swipedIds = swipedRows.map((s) => s.videoId);
   const excludeIds = excludeVideoId ? [...swipedIds, excludeVideoId] : swipedIds;
 
@@ -148,7 +155,9 @@ export async function getNextVideoAction(filters?: DiscoveryFilters, excludeVide
   else if (filters?.durationBucket === "medium") {
     conditions.push(and(gte(videos.durationSeconds, 240), lte(videos.durationSeconds, 1200)));
   } else if (filters?.durationBucket === "long") conditions.push(gt(videos.durationSeconds, 1200));
-  if (filters?.language) conditions.push(eq(videos.language, filters.language));
+  // Préfixe plutôt qu'égalité stricte : YouTube renvoie souvent des variantes
+  // régionales ("fr-FR", "en-US"...) qu'un `eq` exact laisserait de côté.
+  if (filters?.language) conditions.push(ilike(videos.language, `${filters.language}%`));
   if (filters?.tags?.length) conditions.push(arrayOverlaps(videos.tags, filters.tags));
   if (filters?.favoriteChannelsOnly) conditions.push(inArray(videos.channelId, favoriteChannelIds));
 

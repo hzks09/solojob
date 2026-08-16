@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { motion, type PanInfo } from "framer-motion";
-import { X, Heart, ExternalLink, ChevronDown, Star } from "lucide-react";
+import { X, Heart, ExternalLink, ChevronDown, Star, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -252,6 +252,11 @@ export function VideoSwiper({
             <span className="absolute bottom-2 right-2 rounded bg-black/80 px-1.5 py-0.5 font-mono text-xs text-white">
               {formatDuration(video.durationSeconds)}
             </span>
+            {video.fromSuggestion && (
+              <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-black/80 px-2 py-1 text-xs text-white">
+                <Sparkles className="h-3 w-3" /> Suggéré par la communauté
+              </span>
+            )}
           </div>
           <CardContent className="pt-4">
             <p className="line-clamp-2 font-medium">{video.title}</p>

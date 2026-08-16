@@ -7,7 +7,19 @@
  * Drizzle de générer la contrainte de clé étrangère `profiles.id -> auth.users.id`.
  */
 
-import { pgTable, pgEnum, pgSchema, text, timestamp, uuid, integer, numeric, primaryKey, index } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  pgEnum,
+  pgSchema,
+  text,
+  timestamp,
+  uuid,
+  integer,
+  numeric,
+  boolean,
+  primaryKey,
+  index,
+} from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 const authSchema = pgSchema("auth");
@@ -23,6 +35,7 @@ const id = () => uuid("id").primaryKey().defaultRandom();
 export const planTierEnum = pgEnum("plan_tier", ["free", "solo", "solo_plus"]);
 export const swipeDirectionEnum = pgEnum("swipe_direction", ["like", "skip"]);
 export const swipeReasonEnum = pgEnum("swipe_reason", ["already_seen", "not_my_style", "boring_channel"]);
+export const videoSuggestionStatusEnum = pgEnum("video_suggestion_status", ["pending", "approved", "rejected"]);
 
 // -----------------------------------------------------------------------------
 // profiles — extension de auth.users (créé par trigger à l'inscription)
@@ -34,6 +47,9 @@ export const profiles = pgTable("profiles", {
   fullName: text("full_name"),
   plan: planTierEnum("plan").notNull().default("free"),
   stripeCustomerId: text("stripe_customer_id").unique(),
+  // Compte admin unique pour la modération des suggestions — pas de système
+  // de rôles, mis à `true` manuellement en base sur un seul compte.
+  isAdmin: boolean("is_admin").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -59,6 +75,10 @@ export const videos = pgTable(
     language: text("language"),
     youtubeCategoryId: text("youtube_category_id"),
     tags: text("tags").array().notNull().default([]),
+    // Vrai uniquement pour une vidéo entrée dans le pool via une suggestion
+    // approuvée (voir video_suggestions) — affiche un badge "Suggéré par la
+    // communauté" sur la carte de swipe.
+    fromSuggestion: boolean("from_suggestion").notNull().default(false),
     publishedAt: timestamp("published_at", { withTimezone: true }),
     cachedAt: timestamp("cached_at", { withTimezone: true }).notNull().defaultNow(),
     // Politique YouTube API Services : toute donnée mise en cache doit être
@@ -174,6 +194,31 @@ export const favoriteChannels = pgTable(
 );
 
 // -----------------------------------------------------------------------------
+// video_suggestions — vidéo proposée par un utilisateur pour rejoindre le pool
+// partagé. Ne stocke que l'ID YouTube (comme `videos`) : aucun fichier, aucun
+// upload, pour ne jamais toucher au quota de stockage fichiers Supabase.
+// N'entre dans `videos` (donc dans le pool proposé aux autres utilisateurs)
+// qu'après passage en statut `approved` par un compte admin.
+// -----------------------------------------------------------------------------
+export const videoSuggestions = pgTable(
+  "video_suggestions",
+  {
+    id: id(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    youtubeVideoId: text("youtube_video_id").notNull(),
+    status: videoSuggestionStatusEnum("status").notNull().default("pending"),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull().defaultNow(),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("idx_video_suggestions_status").on(table.status),
+    index("idx_video_suggestions_user_id").on(table.userId),
+  ]
+);
+
+// -----------------------------------------------------------------------------
 // RELATIONS
 // -----------------------------------------------------------------------------
 export const profilesRelations = relations(profiles, ({ many }) => ({
@@ -181,6 +226,11 @@ export const profilesRelations = relations(profiles, ({ many }) => ({
   savedVideos: many(savedVideos),
   tagWeights: many(userTagWeights),
   favoriteChannels: many(favoriteChannels),
+  videoSuggestions: many(videoSuggestions),
+}));
+
+export const videoSuggestionsRelations = relations(videoSuggestions, ({ one }) => ({
+  profile: one(profiles, { fields: [videoSuggestions.userId], references: [profiles.id] }),
 }));
 
 export const videosRelations = relations(videos, ({ many }) => ({
@@ -208,7 +258,9 @@ export type Swipe = typeof swipes.$inferSelect;
 export type UserTagWeight = typeof userTagWeights.$inferSelect;
 export type SavedVideo = typeof savedVideos.$inferSelect;
 export type FavoriteChannel = typeof favoriteChannels.$inferSelect;
+export type VideoSuggestion = typeof videoSuggestions.$inferSelect;
 
 export type PlanTier = (typeof planTierEnum.enumValues)[number];
 export type SwipeDirection = (typeof swipeDirectionEnum.enumValues)[number];
 export type SwipeReason = (typeof swipeReasonEnum.enumValues)[number];
+export type VideoSuggestionStatus = (typeof videoSuggestionStatusEnum.enumValues)[number];

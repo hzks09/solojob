@@ -2,17 +2,19 @@
 
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { LayoutDashboard, Bookmark, Settings } from "lucide-react";
+import { LayoutDashboard, Bookmark, Settings, Lightbulb, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { Logo } from "@/components/ui/logo";
+import { PLANS } from "@/lib/constants";
 import type { PlanTier } from "@/lib/db/schema";
 
 const LINKS = [
   { href: "/dashboard", label: "Découvrir" },
   { href: "/liste", label: "Ma liste" },
+  { href: "/suggestions", label: "Suggestions" },
   { href: "/billing", label: "Abonnement" },
   { href: "/settings", label: "Réglages" },
 ];
@@ -21,10 +23,11 @@ const LINKS = [
 const MOBILE_TABS = [
   { href: "/dashboard", label: "Découvrir", icon: LayoutDashboard },
   { href: "/liste", label: "Ma liste", icon: Bookmark },
+  { href: "/suggestions", label: "Suggérer", icon: Lightbulb },
   { href: "/settings", label: "Réglages", icon: Settings },
 ];
 
-export function DashboardNav({ plan }: { plan?: PlanTier }) {
+export function DashboardNav({ plan, isAdmin }: { plan?: PlanTier; isAdmin?: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -61,7 +64,15 @@ export function DashboardNav({ plan }: { plan?: PlanTier }) {
           </div>
 
           <div className="flex items-center gap-3">
-            {plan && <Badge variant="outline">{plan}</Badge>}
+            {isAdmin && (
+              <Link
+                href="/admin/suggestions"
+                className="hidden items-center gap-1.5 rounded-full border border-card-border px-3 py-1.5 text-sm text-muted hover:text-foreground md:flex"
+              >
+                <ShieldCheck className="h-3.5 w-3.5" /> Modération
+              </Link>
+            )}
+            {plan && <Badge variant="outline">{PLANS[plan].name}</Badge>}
             <Button variant="ghost" size="sm" onClick={handleSignOut}>
               Déconnexion
             </Button>

@@ -29,7 +29,40 @@ export interface YoutubeVideoItem {
   };
   contentDetails: {
     duration: string; // format ISO 8601, ex. "PT4M13S"
+    contentRating?: { ytRating?: string }; // "ytAgeRestricted" si la vidéo est restreinte
   };
+  status?: {
+    embeddable?: boolean;
+    privacyStatus?: string; // "public" | "unlisted" | "private"
+  };
+}
+
+/**
+ * Extrait un ID vidéo YouTube (11 caractères) depuis une URL classique,
+ * une URL courte (youtu.be), une URL Shorts/embed, ou un ID déjà brut —
+ * utilisé pour la validation des suggestions utilisateur.
+ */
+export function parseYoutubeVideoId(input: string): string | null {
+  const trimmed = input.trim();
+  if (/^[A-Za-z0-9_-]{11}$/.test(trimmed)) return trimmed;
+
+  try {
+    const url = new URL(trimmed);
+    if (url.hostname === "youtu.be") {
+      const id = url.pathname.slice(1);
+      return /^[A-Za-z0-9_-]{11}$/.test(id) ? id : null;
+    }
+    if (url.hostname.endsWith("youtube.com")) {
+      const vParam = url.searchParams.get("v");
+      if (vParam && /^[A-Za-z0-9_-]{11}$/.test(vParam)) return vParam;
+      const match = url.pathname.match(/\/(?:shorts|embed)\/([A-Za-z0-9_-]{11})/);
+      if (match) return match[1];
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
 }
 
 /** Convertit une durée ISO 8601 YouTube (ex. "PT4M13S") en secondes. */
@@ -69,6 +102,11 @@ export async function searchVideos(
   url.searchParams.set("maxResults", String(maxResults));
   url.searchParams.set("q", query);
   url.searchParams.set("key", apiKey);
+  // Loupick cible le public francophone — biaise le classement YouTube vers
+  // la France/le français sans exclure de résultats pertinents en anglais
+  // (contrairement à un filtre de langue strict côté base de données).
+  url.searchParams.set("regionCode", "FR");
+  url.searchParams.set("relevanceLanguage", "fr");
   if (pageToken) url.searchParams.set("pageToken", pageToken);
   if (order) url.searchParams.set("order", order);
 
@@ -87,7 +125,7 @@ export async function fetchVideoDetails(videoIds: string[]): Promise<YoutubeVide
   if (!apiKey || videoIds.length === 0) return [];
 
   const url = new URL(`${YOUTUBE_API_BASE}/videos`);
-  url.searchParams.set("part", "snippet,contentDetails");
+  url.searchParams.set("part", "snippet,contentDetails,status");
   url.searchParams.set("id", videoIds.join(","));
   url.searchParams.set("key", apiKey);
 

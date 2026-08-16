@@ -9,8 +9,9 @@ export default function ConfidentialitePage() {
     <LegalLayout title="Politique de confidentialité">
       <LegalSection title="Responsable de traitement">
         <p>
-          Le responsable du traitement des données personnelles collectées via Loupick est [NOM DE
-          L&apos;ÉDITEUR], [ADRESSE COMPLÈTE], joignable à [EMAIL DE CONTACT].
+          Le responsable du traitement des données personnelles collectées via Loupick est l&apos;éditeur
+          individuel du site, joignable à loupickvideos@outlook.fr. Les coordonnées complètes de l&apos;éditeur
+          seront publiées ici dès l&apos;immatriculation de l&apos;activité.
         </p>
       </LegalSection>
 
@@ -87,7 +88,7 @@ export default function ConfidentialitePage() {
         <p>
           Conformément au RGPD, vous disposez d&apos;un droit d&apos;accès, de rectification, d&apos;effacement, de
           limitation, de portabilité et d&apos;opposition sur vos données. Vous pouvez exercer ces droits en nous
-          contactant à [EMAIL DE CONTACT]. Vous disposez également du droit d&apos;introduire une réclamation
+          contactant à loupickvideos@outlook.fr. Vous disposez également du droit d&apos;introduire une réclamation
           auprès de la CNIL (cnil.fr).
         </p>
       </LegalSection>

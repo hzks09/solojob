@@ -9,13 +9,12 @@ export default function MentionsLegalesPage() {
     <LegalLayout title="Mentions légales">
       <LegalSection title="Éditeur du site">
         <p>
-          Le site Loupick (accessible à l&apos;adresse solojob.vercel.app) est édité par [NOM DE L&apos;ÉDITEUR],
-          [STATUT JURIDIQUE — ex. entrepreneur individuel], immatriculé sous le numéro SIRET [SIRET], dont le siège
-          est situé [ADRESSE COMPLÈTE].
+          Le site Loupick est édité à titre individuel. L&apos;activité n&apos;étant pas encore immatriculée à ce
+          stade (numéro SIRET non attribué), les mentions d&apos;identification complètes de l&apos;éditeur seront
+          publiées ici dès l&apos;immatriculation effective.
         </p>
-        <p>Numéro de TVA intracommunautaire : [NUMÉRO DE TVA, ou &laquo; non applicable, art. 293B du CGI &raquo;]</p>
-        <p>Contact : [EMAIL DE CONTACT]</p>
-        <p>Directeur de la publication : [NOM DU DIRECTEUR DE PUBLICATION]</p>
+        <p>Contact : loupickvideos@outlook.fr</p>
+        <p>Directeur de la publication : l&apos;éditeur du site, joignable à l&apos;adresse de contact ci-dessus.</p>
       </LegalSection>
 
       <LegalSection title="Hébergement">

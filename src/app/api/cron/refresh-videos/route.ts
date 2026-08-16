@@ -1,12 +1,29 @@
 import { NextResponse } from "next/server";
-import { eq, inArray, lt } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { moodSearchCursors, videos } from "@/lib/db/schema";
+import { moodSearchCursors, videos, swipes, savedVideos } from "@/lib/db/schema";
 import { searchVideos, fetchVideoDetails, parseIsoDuration, type YoutubeVideoItem } from "@/lib/youtube/client";
 import { MOOD_CATEGORIES, type SubCategory } from "@/lib/youtube/moods";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 const SEARCH_RESULTS_PER_MOOD = 25;
+// Un skip vieux de plus de 90 jours n'a presque plus d'utilité : le poids
+// appris par tag (userTagWeights) capture déjà le signal, et la fenêtre
+// d'exclusion "déjà vu" ne regarde de toute façon que les 60 derniers jours
+// (voir RECENT_SWIPE_LOOKBACK_DAYS dans discovery.ts) — si la vidéo revient
+// occasionnellement dans les propositions, l'utilisateur peut la re-swiper
+// sans conséquence. Les "like" sont gardés indéfiniment (alimentent
+// savedVideos, qui doit rester fiable).
+const SKIP_SWIPE_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
+// Au-delà de ce nombre de vidéos en cache, on retire les plus anciennes
+// jamais aimées par personne plutôt que de laisser le pool grossir sans
+// limite — un garde-fou contre un bug/une boucle d'ingestion, pas une
+// urgence de stockage : une ligne `videos` ne pèse qu'1-2 Ko, donc même
+// 50 000 lignes ne représentent qu'environ 60 Mo sur les 500 Mo du plan
+// gratuit Supabase. Au rythme actuel du cron (~8 recherches/jour), ce seuil
+// est hors de portée avant des années — le catalogue peut donc grossir
+// librement pour offrir plus de choix aux utilisateurs.
+const VIDEO_POOL_CAP = 50_000;
 
 async function getCursor(tag: string) {
   const [existing] = await db.select().from(moodSearchCursors).where(eq(moodSearchCursors.tag, tag)).limit(1);
@@ -163,5 +180,57 @@ export async function GET(req: Request) {
     }
   }
 
-  return NextResponse.json({ searchCalls, videosListCalls, videosUpserted, refreshed, purged, errors });
+  // 3) Purge des vieux skips — voir SKIP_SWIPE_RETENTION_MS ci-dessus. Les
+  // "like" ne sont jamais touchés ici.
+  let skipsPurged = 0;
+  try {
+    const skipRetentionThreshold = new Date(Date.now() - SKIP_SWIPE_RETENTION_MS);
+    const deletedSkips = await db
+      .delete(swipes)
+      .where(and(eq(swipes.direction, "skip"), lt(swipes.createdAt, skipRetentionThreshold)))
+      .returning({ id: swipes.id });
+    skipsPurged = deletedSkips.length;
+  } catch (err) {
+    errors.push(`purge skips: ${err instanceof Error ? err.message : "erreur inconnue"}`);
+  }
+
+  // 4) Cap sur la taille du pool — retire les vidéos les plus anciennes
+  // (cachedAt) parmi celles jamais likées, seulement si on dépasse le seuil.
+  let videosCapped = 0;
+  try {
+    const [{ value: totalVideos }] = await db.select({ value: sql<number>`count(*)::int` }).from(videos);
+    if (totalVideos > VIDEO_POOL_CAP) {
+      const excess = totalVideos - VIDEO_POOL_CAP;
+      const removable = await db
+        .select({ id: videos.id })
+        .from(videos)
+        .leftJoin(savedVideos, eq(savedVideos.videoId, videos.id))
+        .where(isNull(savedVideos.userId))
+        .orderBy(asc(videos.cachedAt))
+        .limit(excess);
+
+      if (removable.length > 0) {
+        await db.delete(videos).where(
+          inArray(
+            videos.id,
+            removable.map((v) => v.id)
+          )
+        );
+        videosCapped = removable.length;
+      }
+    }
+  } catch (err) {
+    errors.push(`cap pool vidéos: ${err instanceof Error ? err.message : "erreur inconnue"}`);
+  }
+
+  return NextResponse.json({
+    searchCalls,
+    videosListCalls,
+    videosUpserted,
+    refreshed,
+    purged,
+    skipsPurged,
+    videosCapped,
+    errors,
+  });
 }

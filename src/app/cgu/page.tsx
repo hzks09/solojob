@@ -10,8 +10,7 @@ export default function CguPage() {
       <LegalSection title="1. Objet">
         <p>
           Les présentes conditions générales d&apos;utilisation (CGU) régissent l&apos;accès et l&apos;utilisation du
-          service Loupick, un outil en ligne de découverte de vidéos YouTube par swipe, édité par [NOM DE
-          L&apos;ÉDITEUR].
+          service Loupick, un outil en ligne de découverte de vidéos YouTube par swipe, édité à titre individuel.
         </p>
       </LegalSection>
 
@@ -72,7 +71,7 @@ export default function CguPage() {
       </LegalSection>
 
       <LegalSection title="9. Droit applicable et contact">
-        <p>Les présentes CGU sont soumises au droit français. Pour toute question : [EMAIL DE CONTACT].</p>
+        <p>Les présentes CGU sont soumises au droit français. Pour toute question : loupickvideos@outlook.fr.</p>
       </LegalSection>
     </LegalLayout>
   );

@@ -89,7 +89,7 @@ export const MOOD_CATEGORIES: MoodCategory[] = [
   {
     tag: "voyage",
     label: "Voyage",
-    searchQueries: ["voyage travel vlog", "destination insolite", "road trip découverte", "voyage aventure"],
+    searchQueries: ["carnet de voyage", "destination insolite", "road trip découverte", "voyage aventure"],
     subCategories: [
       { tag: "roadtrip", label: "Road trip", matchKeywords: ["road trip", "roadtrip"] },
       { tag: "nature", label: "Nature", matchKeywords: ["nature", "randonnee", "randonnée", "hiking"] },
@@ -100,7 +100,7 @@ export const MOOD_CATEGORIES: MoodCategory[] = [
   {
     tag: "tech",
     label: "Technologie",
-    searchQueries: ["actualité tech gadgets", "test smartphone", "intelligence artificielle explication", "tech review"],
+    searchQueries: ["actualité tech gadgets", "test smartphone", "intelligence artificielle explication", "avis high-tech"],
     subCategories: [
       { tag: "ia", label: "Intelligence artificielle", matchKeywords: ["intelligence artificielle", "chatgpt", " ia "] },
       { tag: "gaming", label: "Gaming", matchKeywords: ["gaming", "jeu video", "jeu vidéo", "gameplay"] },
