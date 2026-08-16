@@ -4,7 +4,7 @@ import { and, asc, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { moodSearchCursors, videos, swipes, savedVideos } from "@/lib/db/schema";
 import { searchVideos, fetchVideoDetails, parseIsoDuration, type YoutubeVideoItem } from "@/lib/youtube/client";
-import { MOOD_CATEGORIES, type SubCategory } from "@/lib/youtube/moods";
+import { MOOD_CATEGORIES, YOUTUBE_MUSIC_CATEGORY_ID, type SubCategory } from "@/lib/youtube/moods";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 const SEARCH_RESULTS_PER_MOOD = 25;
@@ -50,6 +50,10 @@ function detectSubTags(item: YoutubeVideoItem, subCategories: SubCategory[]): st
 
 async function upsertVideos(items: YoutubeVideoItem[], extraTag?: string, subCategories: SubCategory[] = []) {
   for (const item of items) {
+    // Le site ne diffuse pas de musique — une recherche non musicale peut
+    // quand même remonter des clips, d'où ce filtre à l'entrée du pool.
+    if (item.snippet.categoryId === YOUTUBE_MUSIC_CATEGORY_ID) continue;
+
     const thumbnail =
       item.snippet.thumbnails.high?.url ?? item.snippet.thumbnails.medium?.url ?? item.snippet.thumbnails.default?.url ?? "";
     const durationSeconds = parseIsoDuration(item.contentDetails.duration);
@@ -92,7 +96,7 @@ async function upsertVideos(items: YoutubeVideoItem[], extraTag?: string, subCat
  * à l'API YouTube — les swipes utilisateur ne font jamais d'appel direct.
  *
  * Budget de quota par exécution : `search.list` (100 unités) une fois par
- * mood prédéfinie (MOOD_CATEGORIES.length appels, soit 800 unités pour 8
+ * mood prédéfinie (MOOD_CATEGORIES.length appels, soit 700 unités pour 7
  * moods), + `videos.list` (1 unité/appel) pour les métadonnées et le
  * rafraîchissement des vidéos de plus de 30 jours — largement sous les
  * 10 000 unités/jour gratuites (le cron ne tourne qu'une fois/jour, voir

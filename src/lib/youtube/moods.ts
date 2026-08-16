@@ -24,19 +24,17 @@ export interface MoodCategory {
   subCategories: SubCategory[];
 }
 
+/**
+ * Identifiant de la catégorie "Music" chez YouTube. Le site ne diffuse pas de
+ * contenu musical : ce filtre est appliqué à l'entrée du pool (job planifié et
+ * suggestions utilisateur), car une vidéo musicale peut remonter dans les
+ * résultats d'une recherche non musicale.
+ */
+export const YOUTUBE_MUSIC_CATEGORY_ID = "10";
+
+// Volontairement sans catégorie musique — choix éditorial du site, à ne pas
+// réintroduire sans validation explicite.
 export const MOOD_CATEGORIES: MoodCategory[] = [
-  {
-    tag: "musique",
-    label: "Musique chill",
-    searchQueries: ["musique chill lofi", "playlist chill relax", "musique ambiance travail", "chillout beats"],
-    subCategories: [
-      { tag: "lofi", label: "Lofi", matchKeywords: ["lofi", "lo-fi", "lo fi"] },
-      { tag: "rap", label: "Rap", matchKeywords: ["rap", "hip hop", "hip-hop"] },
-      { tag: "rock", label: "Rock", matchKeywords: ["rock", "metal"] },
-      { tag: "electro", label: "Électro", matchKeywords: ["electro", "edm", "techno", "house music"] },
-      { tag: "classique", label: "Classique", matchKeywords: ["classique", "classical", "orchestre", "piano"] },
-    ],
-  },
   {
     tag: "science",
     label: "Vulgarisation science",

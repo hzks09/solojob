@@ -7,6 +7,7 @@ import { videos, videoSuggestions, type VideoSuggestion } from "@/lib/db/schema"
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { rateLimit } from "@/lib/rate-limit";
 import { fetchVideoDetails, parseIsoDuration, parseYoutubeVideoId, type YoutubeVideoItem } from "@/lib/youtube/client";
+import { YOUTUBE_MUSIC_CATEGORY_ID } from "@/lib/youtube/moods";
 
 const DAILY_SUGGESTION_LIMIT = 5;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -29,6 +30,9 @@ function isSuggestable(item: YoutubeVideoItem): { ok: true } | { ok: false; erro
   }
   if (item.status?.privacyStatus && item.status.privacyStatus !== "public") {
     return { ok: false, error: "Cette vidéo n'est pas publique." };
+  }
+  if (item.snippet.categoryId === YOUTUBE_MUSIC_CATEGORY_ID) {
+    return { ok: false, error: "Loupick ne propose pas de contenu musical." };
   }
   return { ok: true };
 }
