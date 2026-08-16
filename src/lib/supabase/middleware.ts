@@ -33,9 +33,20 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Un ralentissement réseau ponctuel vers l'API Auth Supabase ne doit pas
+  // faire planter toute la requête — un essai suffit presque toujours à
+  // absorber ce type de blip. En dernier recours, on laisse passer : la
+  // page elle-même revérifie via getCurrentUser() (voir commentaire ci-dessus).
+  let user = null;
+  try {
+    user = (await supabase.auth.getUser()).data.user;
+  } catch {
+    try {
+      user = (await supabase.auth.getUser()).data.user;
+    } catch {
+      return supabaseResponse;
+    }
+  }
 
   const isProtected = PROTECTED_PREFIXES.some((p) => request.nextUrl.pathname.startsWith(p));
 

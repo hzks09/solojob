@@ -65,16 +65,20 @@ export function VideoSwiper({
   }, [filters]);
 
   useEffect(() => {
-    getFavoriteChannelIdsAction().then((ids) => setFavoriteChannelIds(new Set(ids)));
+    getFavoriteChannelIdsAction()
+      .then((ids) => setFavoriteChannelIds(new Set(ids)))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
     if (result.status !== "ok") return;
     let cancelled = false;
     const videoId = result.video.id;
-    getNextVideoAction(filters, videoId).then((next) => {
-      if (!cancelled) prefetchedRef.current = { videoId, result: next };
-    });
+    getNextVideoAction(filters, videoId)
+      .then((next) => {
+        if (!cancelled) prefetchedRef.current = { videoId, result: next };
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
