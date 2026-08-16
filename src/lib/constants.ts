@@ -33,7 +33,7 @@ export const PLANS: Record<PlanTier, PlanConfig> = {
   solo_plus: {
     tier: "solo_plus",
     name: "Loupick+",
-    priceMonthly: 4,
+    priceMonthly: 19,
     dailyDiscoveryLimit: "illimite",
     advancedFilters: true,
     features: ["Découvertes illimitées", "Filtres avancés (durée, langue)", "Liste à regarder plus tard"],
