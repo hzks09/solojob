@@ -85,7 +85,7 @@ export async function getDailyDiscoveryUsage(): Promise<{ used: number; limit: n
   const [{ value: used }] = await db
     .select({ value: sql<number>`count(*)::int` })
     .from(swipes)
-    .where(and(eq(swipes.userId, current.authUser.id), sql`${swipes.createdAt} >= ${startOfToday()}`));
+    .where(and(eq(swipes.userId, current.authUser.id), gte(swipes.createdAt, startOfToday())));
 
   return { used, limit: planConfig.dailyDiscoveryLimit };
 }
