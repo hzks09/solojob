@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -24,6 +24,12 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const callbackUrl = safeRedirectPath(searchParams.get("callbackUrl"));
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("error") !== "lien_invalide") return;
+    toast.error("Ce lien n'est plus valide, il a peut-être expiré. Réessaie de te connecter.");
+    router.replace("/login");
+  }, [searchParams, router]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();

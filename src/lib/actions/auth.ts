@@ -57,7 +57,7 @@ export async function signupAction(input: RegisterInput): Promise<ActionResult> 
     password: parsed.data.password,
     options: {
       data: { full_name: parsed.data.name },
-      emailRedirectTo: `${appUrl}/auth/callback`,
+      emailRedirectTo: `${appUrl}/auth/callback?type=signup`,
     },
   });
 
