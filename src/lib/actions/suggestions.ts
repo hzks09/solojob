@@ -38,7 +38,7 @@ export async function submitSuggestionAction(rawInput: string): Promise<SubmitSu
   if (!current) return { success: false, error: "Non authentifié" };
   const userId = current.authUser.id;
 
-  if (!rateLimit(`suggestion-submit:${userId}`, DAILY_SUGGESTION_LIMIT, DAY_MS).success) {
+  if (!(await rateLimit(`suggestion-submit:${userId}`, DAILY_SUGGESTION_LIMIT, DAY_MS)).success) {
     return { success: false, error: "Tu as atteint la limite de 5 suggestions par jour." };
   }
 

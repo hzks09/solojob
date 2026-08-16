@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { timingSafeEqual } from "node:crypto";
 import { and, asc, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { moodSearchCursors, videos, swipes, savedVideos } from "@/lib/db/schema";
@@ -100,8 +101,19 @@ async function upsertVideos(items: YoutubeVideoItem[], extraTag?: string, subCat
  * systématiquement la même première page — voir `moodSearchCursors`.
  */
 export async function GET(req: Request) {
-  const authHeader = req.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const cronSecret = process.env.CRON_SECRET;
+  // Garde explicite : un secret absent ou vide ne doit jamais matcher par
+  // accident (ex. si CRON_SECRET n'est pas défini en production).
+  if (!cronSecret) {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
+  }
+
+  const authHeader = req.headers.get("authorization") ?? "";
+  const expected = Buffer.from(`Bearer ${cronSecret}`);
+  const supplied = Buffer.from(authHeader);
+  // timingSafeEqual lève une exception sur des tailles différentes — on
+  // court-circuite avant plutôt que de laisser planter la comparaison.
+  if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
 

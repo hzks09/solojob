@@ -1,7 +1,12 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PROTECTED_PREFIXES = ["/dashboard", "/onboarding", "/liste", "/settings", "/billing"];
+// Rappel : toute nouvelle route sous (app) doit être ajoutée ici. Ces routes
+// sont déjà protégées en profondeur au niveau des Server Actions
+// (getCurrentUser()/requireAdmin()), mais sans cette liste un visiteur non
+// connecté obtient un rendu serveur inutile au lieu d'une redirection propre
+// vers /login.
+const PROTECTED_PREFIXES = ["/dashboard", "/onboarding", "/liste", "/settings", "/billing", "/suggestions", "/admin"];
 
 /**
  * Rafraîchit la session Supabase (cookies) à chaque requête et redirige vers

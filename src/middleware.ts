@@ -6,6 +6,21 @@ import { updateSession } from "@/lib/supabase/middleware";
 // de passe.
 const PUBLIC_PATHS = ["/api/stripe/webhook", "/api/cron/"];
 
+// Comparaison à temps constant en JS pur — ce middleware tourne en Edge
+// Runtime, où `node:crypto` (et donc `timingSafeEqual`) n'est pas disponible.
+// `TextEncoder` en revanche est une API Web standard supportée en Edge.
+function constantTimeEqual(a: string, b: string): boolean {
+  const aBytes = new TextEncoder().encode(a);
+  const bBytes = new TextEncoder().encode(b);
+  if (aBytes.length !== bBytes.length) return false;
+
+  let diff = 0;
+  for (let i = 0; i < aBytes.length; i++) {
+    diff |= aBytes[i] ^ bBytes[i];
+  }
+  return diff === 0;
+}
+
 function isSiteAuthorized(request: NextRequest): boolean {
   const password = process.env.SITE_PASSWORD;
   if (!password) return true; // pas de mot de passe configuré = site public
@@ -14,7 +29,7 @@ function isSiteAuthorized(request: NextRequest): boolean {
   if (!auth?.startsWith("Basic ")) return false;
 
   const [, suppliedPassword] = atob(auth.slice(6)).split(":");
-  return suppliedPassword === password;
+  return constantTimeEqual(suppliedPassword, password);
 }
 
 export async function middleware(request: NextRequest) {

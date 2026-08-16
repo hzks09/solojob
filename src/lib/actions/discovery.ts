@@ -111,7 +111,7 @@ export async function getNextVideoAction(filters?: DiscoveryFilters, excludeVide
 
   // Anti-bourrinage : rien n'empêchait un script d'appeler cette action en
   // boucle en dehors du rythme normal d'un swipe.
-  if (!rateLimit(`discovery-next:${userId}`, 60, 60_000).success) {
+  if (!(await rateLimit(`discovery-next:${userId}`, 60, 60_000)).success) {
     return { status: "rate_limited" };
   }
 
@@ -230,7 +230,7 @@ export async function recordSwipeAction(
   const userId = current.authUser.id;
 
   // Anti-bourrinage — même limite que getNextVideoAction.
-  if (!rateLimit(`discovery-swipe:${userId}`, 60, 60_000).success) {
+  if (!(await rateLimit(`discovery-swipe:${userId}`, 60, 60_000)).success) {
     throw new Error("Trop de swipes trop vite, ralentis un peu.");
   }
 
