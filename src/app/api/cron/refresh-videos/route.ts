@@ -33,6 +33,9 @@ const SEARCH_ORDERS = ["relevance", "date", "viewCount"] as const;
  * à mesure, donc la suivante reprend là où celle-ci s'est arrêtée.
  */
 export const maxDuration = 60;
+// Marge de sécurité sous maxDuration : la phase de découverte s'arrête à ce
+// seuil pour laisser les étapes d'entretien (purges) se terminer proprement.
+const DISCOVERY_TIME_BUDGET_MS = 40_000;
 // Un skip vieux de plus de 90 jours n'a presque plus d'utilité : le poids
 // appris par tag (userTagWeights) capture déjà le signal, et la fenêtre
 // d'exclusion "déjà vu" ne regarde de toute façon que les 60 derniers jours
@@ -163,16 +166,51 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
   }
 
+  const startedAt = Date.now();
   const errors: string[] = [];
   let searchCalls = 0;
   let videosListCalls = 0;
   let videosUpserted = 0;
 
-  // 1) Découverte de nouvelles vidéos — une recherche par mood prédéfinie,
-  // qui avance dans sa pagination (ou change de formulation) à chaque run.
+  // 1) Politique YouTube API Services : toute donnée en cache doit être
+  // rafraîchie (ou supprimée) au maximum 30 jours après récupération. Cette
+  // étape passe AVANT la découverte car elle est imposée, alors que faire
+  // grossir le catalogue est discrétionnaire — si le temps vient à manquer,
+  // c'est la découverte qui doit être tronquée, jamais l'inverse.
+  const staleThreshold = new Date(Date.now() - THIRTY_DAYS_MS);
+  const stale = await db
+    .select({ id: videos.id, youtubeVideoId: videos.youtubeVideoId })
+    .from(videos)
+    .where(lt(videos.lastRefreshedAt, staleThreshold));
+
+  let refreshed = 0;
+  let purged = 0;
+  for (const batch of chunk(stale, 50)) {
+    try {
+      const details = await fetchVideoDetails(batch.map((v) => v.youtubeVideoId));
+      videosListCalls++;
+      await upsertVideos(details);
+      refreshed += details.length;
+
+      const foundIds = new Set(details.map((d) => d.id));
+      const missingIds = batch.filter((v) => !foundIds.has(v.youtubeVideoId)).map((v) => v.id);
+      if (missingIds.length > 0) {
+        await db.delete(videos).where(inArray(videos.id, missingIds));
+        purged += missingIds.length;
+      }
+    } catch (err) {
+      errors.push(`rafraîchissement: ${err instanceof Error ? err.message : "erreur inconnue"}`);
+    }
+  }
+
+  // 2) Découverte de nouvelles vidéos — plusieurs recherches par mood, chacune
+  // reprenant la pagination là où la précédente s'est arrêtée.
   for (const mood of MOOD_CATEGORIES) {
     for (let i = 0; i < SEARCHES_PER_MOOD_PER_RUN; i++) {
       if (searchCalls >= MAX_SEARCH_CALLS_PER_RUN) break;
+      // Coupure nette avant la limite de la fonction : les curseurs ayant déjà
+      // avancé, la prochaine exécution reprendra simplement la suite.
+      if (Date.now() - startedAt > DISCOVERY_TIME_BUDGET_MS) break;
 
       try {
         // Relu à chaque tour : le curseur vient d'être avancé par l'itération
@@ -213,34 +251,6 @@ export async function GET(req: Request) {
         // globale (quota épuisé, clé invalide) et non propre à une page.
         break;
       }
-    }
-  }
-
-  // 2) Politique YouTube API Services : toute donnée en cache doit être
-  // rafraîchie (ou supprimée) au maximum 30 jours après récupération.
-  const staleThreshold = new Date(Date.now() - THIRTY_DAYS_MS);
-  const stale = await db
-    .select({ id: videos.id, youtubeVideoId: videos.youtubeVideoId })
-    .from(videos)
-    .where(lt(videos.lastRefreshedAt, staleThreshold));
-
-  let refreshed = 0;
-  let purged = 0;
-  for (const batch of chunk(stale, 50)) {
-    try {
-      const details = await fetchVideoDetails(batch.map((v) => v.youtubeVideoId));
-      videosListCalls++;
-      await upsertVideos(details);
-      refreshed += details.length;
-
-      const foundIds = new Set(details.map((d) => d.id));
-      const missingIds = batch.filter((v) => !foundIds.has(v.youtubeVideoId)).map((v) => v.id);
-      if (missingIds.length > 0) {
-        await db.delete(videos).where(inArray(videos.id, missingIds));
-        purged += missingIds.length;
-      }
-    } catch (err) {
-      errors.push(`rafraîchissement: ${err instanceof Error ? err.message : "erreur inconnue"}`);
     }
   }
 
