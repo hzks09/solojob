@@ -27,8 +27,10 @@ export interface YoutubeVideoItem {
     categoryId?: string;
     defaultAudioLanguage?: string;
   };
-  contentDetails: {
-    duration: string; // format ISO 8601, ex. "PT4M13S"
+  // Optionnel en pratique : l'API omet le bloc (ou la durée) sur certains
+  // éléments, notamment les directs.
+  contentDetails?: {
+    duration?: string; // format ISO 8601, ex. "PT4M13S"
     contentRating?: { ytRating?: string }; // "ytAgeRestricted" si la vidéo est restreinte
   };
   status?: {
@@ -65,8 +67,13 @@ export function parseYoutubeVideoId(input: string): string | null {
   return null;
 }
 
-/** Convertit une durée ISO 8601 YouTube (ex. "PT4M13S") en secondes. */
-export function parseIsoDuration(iso: string): number {
+/**
+ * Convertit une durée ISO 8601 YouTube (ex. "PT4M13S") en secondes. Renvoie 0
+ * si la durée est absente ou illisible : l'API ne la fournit pas pour les
+ * directs, et une exception ici ferait perdre tout le lot en cours.
+ */
+export function parseIsoDuration(iso?: string | null): number {
+  if (!iso) return 0;
   const match = iso.match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/);
   if (!match) return 0;
   const [, h, m, s] = match;

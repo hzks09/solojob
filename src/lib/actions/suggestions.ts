@@ -22,7 +22,7 @@ async function requireAdmin() {
 
 /** Vérifie qu'une vidéo est publique et embarquable — rejette avant toute écriture en base sinon. */
 function isSuggestable(item: YoutubeVideoItem): { ok: true } | { ok: false; error: string } {
-  if (item.contentDetails.contentRating?.ytRating === "ytAgeRestricted") {
+  if (item.contentDetails?.contentRating?.ytRating === "ytAgeRestricted") {
     return { ok: false, error: "Cette vidéo est soumise à une restriction d'âge, elle ne peut pas être proposée." };
   }
   if (item.status?.embeddable === false) {
@@ -33,6 +33,9 @@ function isSuggestable(item: YoutubeVideoItem): { ok: true } | { ok: false; erro
   }
   if (item.snippet.categoryId === YOUTUBE_MUSIC_CATEGORY_ID) {
     return { ok: false, error: "Loupick ne propose pas de contenu musical." };
+  }
+  if (parseIsoDuration(item.contentDetails?.duration) === 0) {
+    return { ok: false, error: "Cette vidéo n'a pas de durée exploitable (direct en cours ?)." };
   }
   return { ok: true };
 }
@@ -139,7 +142,7 @@ export async function approveSuggestionAction(suggestionId: string): Promise<{ s
       thumbnailUrl: thumbnail,
       channelId: details.snippet.channelId,
       channelTitle: details.snippet.channelTitle,
-      durationSeconds: parseIsoDuration(details.contentDetails.duration),
+      durationSeconds: parseIsoDuration(details.contentDetails?.duration),
       language: details.snippet.defaultAudioLanguage ?? null,
       youtubeCategoryId: details.snippet.categoryId ?? null,
       tags: details.snippet.tags ?? [],

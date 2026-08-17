@@ -101,14 +101,17 @@ async function upsertVideos(items: YoutubeVideoItem[], extraTag?: string, subCat
           "",
         channelId: item.snippet.channelId,
         channelTitle: item.snippet.channelTitle,
-        durationSeconds: parseIsoDuration(item.contentDetails.duration),
+        durationSeconds: parseIsoDuration(item.contentDetails?.duration),
         language: item.snippet.defaultAudioLanguage ?? null,
         youtubeCategoryId: item.snippet.categoryId ?? null,
         tags: Array.from(new Set([...(extraTag ? [extraTag] : []), ...subTags, ...(item.snippet.tags ?? [])])),
         publishedAt: item.snippet.publishedAt ? new Date(item.snippet.publishedAt) : null,
         lastRefreshedAt: now,
       };
-    });
+    })
+    // Une durée nulle signale un direct ou une durée illisible : la carte de
+    // swipe afficherait "0:00" et les filtres de durée n'auraient aucun sens.
+    .filter((row) => row.durationSeconds > 0);
 
   // Postgres refuse qu'un ON CONFLICT touche deux fois la même ligne dans un
   // même ordre : on dédoublonne le lot avant l'envoi.
