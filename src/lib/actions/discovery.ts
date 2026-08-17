@@ -74,8 +74,13 @@ function startOfToday() {
  * swipes existants sur une fenêtre temporelle plutôt que de maintenir un
  * compteur dédié. `null` = forfait illimité, rien à vérifier.
  */
-export async function getDailyDiscoveryUsage(): Promise<{ used: number; limit: number } | null> {
-  const current = await getCurrentUser();
+export async function getDailyDiscoveryUsage(
+  // `getCurrentUser()` fait un appel réseau vers l'API Auth Supabase : quand
+  // l'appelant l'a déjà chargé, le repasser ici évite de le refaire. Distinguer
+  // `undefined` (non fourni) de `null` (pas de session) est volontaire.
+  preloadedUser?: Awaited<ReturnType<typeof getCurrentUser>>
+): Promise<{ used: number; limit: number } | null> {
+  const current = preloadedUser === undefined ? await getCurrentUser() : preloadedUser;
   if (!current) return null;
 
   const plan = current.profile?.plan ?? "free";
@@ -123,7 +128,7 @@ export async function getNextVideoAction(filters?: DiscoveryFilters, excludeVide
     return { status: "filters_require_upgrade" };
   }
 
-  const usage = await getDailyDiscoveryUsage();
+  const usage = await getDailyDiscoveryUsage(current);
   if (usage && usage.used >= usage.limit) {
     return { status: "limit_reached" };
   }
@@ -237,7 +242,7 @@ export async function recordSwipeAction(
   // Revérifié ici : cette action est appelable indépendamment de
   // getNextVideoAction, l'enforcement du quota ne doit jamais reposer sur le
   // fait que le client appelle les deux actions dans le bon ordre.
-  const usage = await getDailyDiscoveryUsage();
+  const usage = await getDailyDiscoveryUsage(current);
   if (usage && usage.used >= usage.limit) {
     throw new Error("Limite de découvertes du jour atteinte.");
   }
@@ -255,13 +260,19 @@ export async function recordSwipeAction(
 
   const delta =
     direction === "like" ? LIKE_WEIGHT_DELTA : reason ? SKIP_WITH_REASON_WEIGHT_DELTA : SKIP_WEIGHT_DELTA;
-  for (const tag of video.tags) {
+
+  // Un seul aller-retour pour tous les tags. En les mettant à jour un par un,
+  // une vidéo chargée en tags (jusqu'à 73 observées en base) déclenchait autant
+  // de requêtes séquentielles, ce qui dominait la latence perçue du swipe.
+  const uniqueTags = [...new Set(video.tags)];
+  if (uniqueTags.length > 0) {
+    const now = new Date();
     await db
       .insert(userTagWeights)
-      .values({ userId, tag, weight: String(delta), updatedAt: new Date() })
+      .values(uniqueTags.map((tag) => ({ userId, tag, weight: String(delta), updatedAt: now })))
       .onConflictDoUpdate({
         target: [userTagWeights.userId, userTagWeights.tag],
-        set: { weight: sql`${userTagWeights.weight} + ${delta}`, updatedAt: new Date() },
+        set: { weight: sql`${userTagWeights.weight} + ${delta}`, updatedAt: now },
       });
   }
 

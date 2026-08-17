@@ -76,7 +76,12 @@ export function VideoSwiper({
     const videoId = result.video.id;
     getNextVideoAction(filters, videoId)
       .then((next) => {
-        if (!cancelled) prefetchedRef.current = { videoId, result: next };
+        if (cancelled) return;
+        prefetchedRef.current = { videoId, result: next };
+        // Précharger la miniature aussi, pas seulement les données : sans ça
+        // la carte suivante s'affiche avec un trou le temps que l'image
+        // arrive, ce qui annule le bénéfice du préchargement.
+        if (next.status === "ok") new window.Image().src = next.video.thumbnailUrl;
       })
       .catch(() => {});
     return () => {
@@ -94,22 +99,50 @@ export function VideoSwiper({
     setFlyDirection(direction);
     setReasonMenuOpen(false);
 
+    // L'enregistrement part immédiatement mais ne retient plus l'affichage
+    // quand la vidéo suivante est déjà préchargée : c'est ce qui rendait le
+    // swipe lent, l'écriture serveur pouvant prendre plusieurs centaines de
+    // millisecondes. Le gestionnaire de rejet est attaché tout de suite pour
+    // qu'une erreur ne remonte jamais en "unhandled rejection".
+    const recorded = recordSwipeAction(videoId, direction, reason).then(
+      () => null,
+      (error: unknown) => (error instanceof Error ? error.message : "Ça n'a pas marché. Réessaie.")
+    );
+
     try {
       // La carte s'envole pendant EXIT_ANIMATION_MS quoi qu'il arrive côté
       // réseau — évite que la prochaine vidéo n'apparaisse brutalement avant
-      // que l'animation de sortie n'ait eu le temps de jouer. La vidéo
-      // suivante est déjà préchargée la plupart du temps, donc il ne reste
-      // souvent que l'enregistrement du swipe à attendre.
+      // que l'animation de sortie n'ait eu le temps de jouer.
       const [, next] = await Promise.all([
         wait(EXIT_ANIMATION_MS),
-        recordSwipeAction(videoId, direction, reason).then(() => prefetched ?? getNextVideoAction(filters)),
+        prefetched ??
+          recorded.then((error) => {
+            if (error) throw new Error(error);
+            return getNextVideoAction(filters);
+          }),
       ]);
       setResult(next);
-    } catch {
-      toast.error("Ça n'a pas marché. Réessaie.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Ça n'a pas marché. Réessaie.");
     } finally {
       setLoading(false);
       setFlyDirection(null);
+    }
+
+    // Carte préchargée : l'enregistrement s'est fait en arrière-plan, donc son
+    // échec (quota du jour atteint, par exemple) n'apparaît qu'ici. On resynchronise
+    // alors sur l'état réel du serveur au lieu de laisser l'utilisateur sur une
+    // carte qu'il ne pourra pas valider.
+    if (prefetched) {
+      const error = await recorded;
+      if (error) {
+        toast.error(error);
+        try {
+          setResult(await getNextVideoAction(filters));
+        } catch {
+          // Rien à ajouter : le toast ci-dessus a déjà signalé le problème.
+        }
+      }
     }
   }
 
