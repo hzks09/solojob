@@ -83,11 +83,13 @@ export interface SearchVideosResult {
  * (part=id). Supporte la pagination (`pageToken`) pour que l'appelant puisse
  * avancer dans les résultats d'une exécution à l'autre plutôt que de
  * toujours récupérer la même première page, et le tri (`order`) pour
- * alterner pertinence/récence.
+ * alterner pertinence/récence/popularité. `maxResults` est plafonné à 50 par
+ * l'API — et comme le coût est le même quel que soit ce nombre, il n'y a
+ * aucune raison de demander moins.
  */
 export async function searchVideos(
   query: string,
-  options: { maxResults?: number; pageToken?: string | null; order?: "relevance" | "date" } = {}
+  options: { maxResults?: number; pageToken?: string | null; order?: "relevance" | "date" | "viewCount" } = {}
 ): Promise<SearchVideosResult> {
   const apiKey = process.env.YOUTUBE_API_KEY;
   if (!apiKey) return { videoIds: [], nextPageToken: null };

@@ -7,7 +7,32 @@ import { searchVideos, fetchVideoDetails, parseIsoDuration, type YoutubeVideoIte
 import { MOOD_CATEGORIES, YOUTUBE_MUSIC_CATEGORY_ID, type SubCategory } from "@/lib/youtube/moods";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-const SEARCH_RESULTS_PER_MOOD = 25;
+// 50 = maximum autorisé par search.list, et le coût en quota (100 unités) est
+// le même que pour 1 résultat — aucune raison de demander moins.
+const SEARCH_RESULTS_PER_MOOD = 50;
+// Plusieurs recherches par catégorie et par exécution, chacune reprenant là où
+// la précédente s'est arrêtée (voir `moodSearchCursors`). C'est le levier
+// principal pour faire grossir le catalogue.
+const SEARCHES_PER_MOOD_PER_RUN = 6;
+// Garde-fou de quota, exprimé dans l'unité qui compte vraiment : search.list
+// coûte 100 unités et le forfait gratuit en donne 10 000/jour. 42 recherches
+// = 4 200 unités, ce qui laisse de quoi relancer le job manuellement le même
+// jour sans dépasser le quota. Ce plafond borne aussi la durée d'exécution,
+// contrainte par la limite de 60 s d'une fonction Vercel (voir maxDuration).
+const MAX_SEARCH_CALLS_PER_RUN = 42;
+// Alterner le tri diversifie fortement les résultats d'une même formulation :
+// `relevance` donne les plus pertinentes, `date` les plus récentes, et
+// `viewCount` fait remonter les grands classiques, y compris anciens.
+const SEARCH_ORDERS = ["relevance", "date", "viewCount"] as const;
+
+/**
+ * Le job enchaîne des dizaines d'appels réseau : il lui faut plus que les 10 s
+ * accordées par défaut. 60 s est le maximum du plan gratuit Vercel — d'où le
+ * plafond MAX_SEARCH_CALLS_PER_RUN, calibré pour tenir dedans. Une exécution
+ * interrompue n'est de toute façon pas perdue : les curseurs avancent au fur et
+ * à mesure, donc la suivante reprend là où celle-ci s'est arrêtée.
+ */
+export const maxDuration = 60;
 // Un skip vieux de plus de 90 jours n'a presque plus d'utilité : le poids
 // appris par tag (userTagWeights) capture déjà le signal, et la fenêtre
 // d'exclusion "déjà vu" ne regarde de toute façon que les 60 derniers jours
@@ -48,61 +73,78 @@ function detectSubTags(item: YoutubeVideoItem, subCategories: SubCategory[]): st
   return subCategories.filter((sub) => sub.matchKeywords.some((kw) => haystack.includes(kw.toLowerCase()))).map((sub) => sub.tag);
 }
 
+/**
+ * Insertion groupée : une seule requête pour tout un lot plutôt qu'un
+ * aller-retour par vidéo. À plusieurs milliers de vidéos par exécution, la
+ * version ligne par ligne dépassait largement la durée maximale d'une fonction
+ * Vercel.
+ */
 async function upsertVideos(items: YoutubeVideoItem[], extraTag?: string, subCategories: SubCategory[] = []) {
-  for (const item of items) {
+  const now = new Date();
+
+  const rows = items
     // Le site ne diffuse pas de musique — une recherche non musicale peut
     // quand même remonter des clips, d'où ce filtre à l'entrée du pool.
-    if (item.snippet.categoryId === YOUTUBE_MUSIC_CATEGORY_ID) continue;
-
-    const thumbnail =
-      item.snippet.thumbnails.high?.url ?? item.snippet.thumbnails.medium?.url ?? item.snippet.thumbnails.default?.url ?? "";
-    const durationSeconds = parseIsoDuration(item.contentDetails.duration);
-    const baseTags = item.snippet.tags ?? [];
-    const subTags = detectSubTags(item, subCategories);
-    const tags = Array.from(new Set([...(extraTag ? [extraTag] : []), ...subTags, ...baseTags]));
-    const now = new Date();
-
-    await db
-      .insert(videos)
-      .values({
+    .filter((item) => item.snippet.categoryId !== YOUTUBE_MUSIC_CATEGORY_ID)
+    .map((item) => {
+      const subTags = detectSubTags(item, subCategories);
+      return {
         youtubeVideoId: item.id,
         title: item.snippet.title,
-        thumbnailUrl: thumbnail,
+        thumbnailUrl:
+          item.snippet.thumbnails.high?.url ??
+          item.snippet.thumbnails.medium?.url ??
+          item.snippet.thumbnails.default?.url ??
+          "",
         channelId: item.snippet.channelId,
         channelTitle: item.snippet.channelTitle,
-        durationSeconds,
+        durationSeconds: parseIsoDuration(item.contentDetails.duration),
         language: item.snippet.defaultAudioLanguage ?? null,
         youtubeCategoryId: item.snippet.categoryId ?? null,
-        tags,
+        tags: Array.from(new Set([...(extraTag ? [extraTag] : []), ...subTags, ...(item.snippet.tags ?? [])])),
         publishedAt: item.snippet.publishedAt ? new Date(item.snippet.publishedAt) : null,
         lastRefreshedAt: now,
-      })
-      .onConflictDoUpdate({
-        target: videos.youtubeVideoId,
-        set: {
-          title: item.snippet.title,
-          thumbnailUrl: thumbnail,
-          channelId: item.snippet.channelId,
-          durationSeconds,
-          tags,
-          lastRefreshedAt: now,
-        },
-      });
-  }
+      };
+    });
+
+  // Postgres refuse qu'un ON CONFLICT touche deux fois la même ligne dans un
+  // même ordre : on dédoublonne le lot avant l'envoi.
+  const deduped = [...new Map(rows.map((r) => [r.youtubeVideoId, r])).values()];
+  if (deduped.length === 0) return 0;
+
+  await db
+    .insert(videos)
+    .values(deduped)
+    .onConflictDoUpdate({
+      target: videos.youtubeVideoId,
+      set: {
+        title: sql`excluded.title`,
+        thumbnailUrl: sql`excluded.thumbnail_url`,
+        channelId: sql`excluded.channel_id`,
+        durationSeconds: sql`excluded.duration_seconds`,
+        tags: sql`excluded.tags`,
+        lastRefreshedAt: sql`excluded.last_refreshed_at`,
+      },
+    });
+
+  return deduped.length;
 }
 
 /**
  * Alimente et rafraîchit le pool de vidéos. Seul endroit du projet qui parle
  * à l'API YouTube — les swipes utilisateur ne font jamais d'appel direct.
  *
- * Budget de quota par exécution : `search.list` (100 unités) une fois par
- * mood prédéfinie (MOOD_CATEGORIES.length appels, soit 700 unités pour 7
- * moods), + `videos.list` (1 unité/appel) pour les métadonnées et le
- * rafraîchissement des vidéos de plus de 30 jours — largement sous les
- * 10 000 unités/jour gratuites (le cron ne tourne qu'une fois/jour, voir
- * vercel.json). Chaque mood avance dans sa pagination (ou passe à la
- * formulation suivante une fois les pages épuisées) au lieu de rappeler
- * systématiquement la même première page — voir `moodSearchCursors`.
+ * Budget de quota par exécution : `search.list` coûte 100 unités et le forfait
+ * gratuit en donne 10 000/jour. Le job en fait au plus
+ * MAX_SEARCH_CALLS_PER_RUN (70 → 7 000 unités), plus des `videos.list` à
+ * 1 unité pièce pour les métadonnées et le rafraîchissement des vidéos de plus
+ * de 30 jours. Il reste donc ~30 % de marge, suffisante pour déclencher une
+ * exécution manuelle le même jour sans dépasser le quota.
+ *
+ * Chaque mood enchaîne plusieurs recherches par exécution, en avançant dans sa
+ * pagination puis en passant à la formulation suivante une fois les pages
+ * épuisées (voir `moodSearchCursors`) — c'est ce qui fait grossir le catalogue
+ * au lieu de rappeler indéfiniment la même première page.
  */
 export async function GET(req: Request) {
   const cronSecret = process.env.CRON_SECRET;
@@ -129,42 +171,48 @@ export async function GET(req: Request) {
   // 1) Découverte de nouvelles vidéos — une recherche par mood prédéfinie,
   // qui avance dans sa pagination (ou change de formulation) à chaque run.
   for (const mood of MOOD_CATEGORIES) {
-    try {
-      const cursor = await getCursor(mood.tag);
-      const variant = mood.searchQueries[cursor.variantIndex % mood.searchQueries.length];
-      // Alterne pertinence/récence selon la variante en cours, pour que le
-      // pool ne se fige pas sur d'anciennes vidéos.
-      const order = cursor.variantIndex % 2 === 0 ? "relevance" : "date";
+    for (let i = 0; i < SEARCHES_PER_MOOD_PER_RUN; i++) {
+      if (searchCalls >= MAX_SEARCH_CALLS_PER_RUN) break;
 
-      const { videoIds, nextPageToken } = await searchVideos(variant, {
-        maxResults: SEARCH_RESULTS_PER_MOOD,
-        pageToken: cursor.pageToken,
-        order,
-      });
-      searchCalls++;
+      try {
+        // Relu à chaque tour : le curseur vient d'être avancé par l'itération
+        // précédente, c'est ce qui fait progresser la pagination.
+        const cursor = await getCursor(mood.tag);
+        const variant = mood.searchQueries[cursor.variantIndex % mood.searchQueries.length];
+        const order = SEARCH_ORDERS[cursor.variantIndex % SEARCH_ORDERS.length];
 
-      if (nextPageToken) {
-        // Encore des pages sur cette formulation : on avance dedans la prochaine fois.
-        await db
-          .update(moodSearchCursors)
-          .set({ pageToken: nextPageToken, updatedAt: new Date() })
-          .where(eq(moodSearchCursors.tag, mood.tag));
-      } else {
-        // Pages épuisées : on passe à la formulation suivante en repartant de zéro.
-        await db
-          .update(moodSearchCursors)
-          .set({ variantIndex: cursor.variantIndex + 1, pageToken: null, updatedAt: new Date() })
-          .where(eq(moodSearchCursors.tag, mood.tag));
+        const { videoIds, nextPageToken } = await searchVideos(variant, {
+          maxResults: SEARCH_RESULTS_PER_MOOD,
+          pageToken: cursor.pageToken,
+          order,
+        });
+        searchCalls++;
+
+        if (nextPageToken) {
+          // Encore des pages sur cette formulation : on avance dedans la prochaine fois.
+          await db
+            .update(moodSearchCursors)
+            .set({ pageToken: nextPageToken, updatedAt: new Date() })
+            .where(eq(moodSearchCursors.tag, mood.tag));
+        } else {
+          // Pages épuisées : on passe à la formulation suivante en repartant de zéro.
+          await db
+            .update(moodSearchCursors)
+            .set({ variantIndex: cursor.variantIndex + 1, pageToken: null, updatedAt: new Date() })
+            .where(eq(moodSearchCursors.tag, mood.tag));
+        }
+
+        if (videoIds.length === 0) continue;
+
+        const details = await fetchVideoDetails(videoIds);
+        videosListCalls++;
+        videosUpserted += await upsertVideos(details, mood.tag, mood.subCategories);
+      } catch (err) {
+        errors.push(`recherche "${mood.tag}": ${err instanceof Error ? err.message : "erreur inconnue"}`);
+        // Inutile d'insister sur cette catégorie : une erreur est en général
+        // globale (quota épuisé, clé invalide) et non propre à une page.
+        break;
       }
-
-      if (videoIds.length === 0) continue;
-
-      const details = await fetchVideoDetails(videoIds);
-      videosListCalls++;
-      await upsertVideos(details, mood.tag, mood.subCategories);
-      videosUpserted += details.length;
-    } catch (err) {
-      errors.push(`recherche "${mood.tag}": ${err instanceof Error ? err.message : "erreur inconnue"}`);
     }
   }
 
