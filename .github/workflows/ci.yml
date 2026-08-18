@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Une nouvelle poussée sur une branche annule la vérification en cours sur
+# cette même branche : inutile de payer deux builds pour un état dépassé.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      # Les étapes sont ordonnées de la moins chère à la plus chère : un
+      # problème de style échoue en quelques secondes plutôt qu'après un build
+      # complet de plusieurs minutes.
+      - name: Lint
+        run: npm run lint
+
+      - name: Vérification des types
+        run: npx tsc --noEmit
+
+      - name: Tests unitaires
+        run: npm run test
+
+      - name: Build de production
+        run: npm run build
+        env:
+          # Valeurs factices : le build n'ouvre aucune connexion, mais
+          # src/lib/db/index.ts refuse de se charger sans DATABASE_URL, et les
+          # variables NEXT_PUBLIC_* sont figées dans le bundle à la compilation.
+          # Aucun secret réel n'a sa place ici — la CI ne doit jamais pouvoir
+          # toucher la base ni les comptes de production.
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+          NEXT_PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+
+      # Les tests d'intégration (base de test dédiée) et de bout en bout
+      # (Playwright) ne tournent pas ici : ils demandent une vraie base et des
+      # comptes de test. Voir CONTRIBUTING.md pour les lancer en local avant un
+      # déploiement.

@@ -54,6 +54,8 @@ export function VideoSwiper({
   // Incrémenté à chaque swipe — permet d'ignorer une mise à jour asynchrone
   // devenue obsolète (voir handleSwipe).
   const swipeGenerationRef = useRef(0);
+  // Premier motif du menu de skip, pour y amener le focus à l'ouverture.
+  const firstReasonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (isFirstRender.current) {
@@ -195,13 +197,26 @@ export function VideoSwiper({
   // Raccourcis clavier desktop — même geste que les boutons.
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
+      // Menu de motif ouvert : Échap le referme, et les flèches ne doivent
+      // surtout pas swiper — l'utilisateur est en train de choisir un motif,
+      // déclencher un swipe sous lui serait une action non voulue et
+      // irréversible côté historique.
+      if (reasonMenuOpen) {
+        if (e.key === "Escape") setReasonMenuOpen(false);
+        return;
+      }
       if (e.key === "ArrowRight") handleSwipe("like");
       else if (e.key === "ArrowLeft") handleSwipe("skip");
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [result, loading]);
+  }, [result, loading, reasonMenuOpen]);
+
+  // Focus amené sur le menu à son ouverture (voir firstReasonRef).
+  useEffect(() => {
+    if (reasonMenuOpen) firstReasonRef.current?.focus();
+  }, [reasonMenuOpen]);
 
   const filterPanel = (
     <FilterPanel filters={filters} onChange={setFilters} advancedFiltersAllowed={advancedFiltersAllowed} />
@@ -352,13 +367,22 @@ export function VideoSwiper({
           {reasonMenuOpen && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setReasonMenuOpen(false)} />
-              <div className="absolute bottom-full left-0 z-20 mb-2 w-full min-w-[220px] rounded-xl border border-card-border bg-card p-1.5 shadow-lg">
+              <div
+                role="menu"
+                aria-label="Pourquoi tu passes ?"
+                className="absolute bottom-full left-0 z-20 mb-2 w-full min-w-[220px] rounded-xl border border-card-border bg-card p-1.5 shadow-lg"
+              >
                 <p className="px-3 py-1.5 text-xs text-muted">Pourquoi tu passes ?</p>
-                {SKIP_REASONS.map((r) => (
+                {SKIP_REASONS.map((r, index) => (
                   <button
                     key={r.value}
                     type="button"
-                    className="block w-full rounded-lg px-3 py-2 text-left text-sm text-muted transition-colors hover:bg-card-border hover:text-foreground"
+                    role="menuitem"
+                    // Le premier motif prend le focus à l'ouverture : sans ça, le
+                    // focus reste sur le déclencheur et l'utilisateur au clavier
+                    // doit deviner que le menu s'est ouvert.
+                    ref={index === 0 ? firstReasonRef : undefined}
+                    className="block w-full rounded-lg px-3 py-2 text-left text-sm text-muted transition-colors hover:bg-card-border hover:text-foreground focus-visible:bg-card-border focus-visible:text-foreground focus-visible:outline-none"
                     onClick={() => handleSwipe("skip", r.value)}
                   >
                     {r.label}
