@@ -51,6 +51,9 @@ export function VideoSwiper({
   // Vidéo suivante préchargée en arrière-plan dès que la vidéo actuelle
   // s'affiche, pour éviter tout temps d'attente perçu après un swipe.
   const prefetchedRef = useRef<{ videoId: string; result: NextVideoResult } | null>(null);
+  // Incrémenté à chaque swipe — permet d'ignorer une mise à jour asynchrone
+  // devenue obsolète (voir handleSwipe).
+  const swipeGenerationRef = useRef(0);
 
   useEffect(() => {
     if (isFirstRender.current) {
@@ -92,6 +95,12 @@ export function VideoSwiper({
 
   async function handleSwipe(direction: "like" | "skip", reason?: SwipeReason) {
     if (result.status !== "ok" || loading) return;
+    // Chaque swipe ouvre une "génération". Une resynchronisation tardive (voir
+    // plus bas) peut se terminer alors que l'utilisateur a déjà swipé la carte
+    // suivante : sans ce compteur, elle écraserait la carte affichée par une
+    // autre — voire ferait réapparaître une vidéo déjà swipée, l'enregistrement
+    // de celle-ci pouvant être encore en vol au moment de la requête.
+    const generation = ++swipeGenerationRef.current;
     const videoId = result.video.id;
     const prefetched = prefetchedRef.current?.videoId === videoId ? prefetchedRef.current.result : null;
     prefetchedRef.current = null;
@@ -136,9 +145,16 @@ export function VideoSwiper({
     if (prefetched) {
       const error = await recorded;
       if (error) {
+        // L'erreur est signalée quoi qu'il arrive : le swipe a bien échoué.
         toast.error(error);
+        // En revanche on ne touche à l'affichage que si l'utilisateur est
+        // toujours sur cette génération. S'il a déjà swipé depuis, la
+        // génération courante gère son propre état et écraser serait faux.
+        if (swipeGenerationRef.current !== generation) return;
         try {
-          setResult(await getNextVideoAction(filters));
+          const resynced = await getNextVideoAction(filters);
+          // Revérifié après l'attente réseau : un swipe a pu survenir entre-temps.
+          if (swipeGenerationRef.current === generation) setResult(resynced);
         } catch {
           // Rien à ajouter : le toast ci-dessus a déjà signalé le problème.
         }

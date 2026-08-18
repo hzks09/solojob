@@ -13,6 +13,7 @@ import {
 } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { PLANS } from "@/lib/constants";
+import { explorationRateFor } from "@/lib/discovery-scoring";
 import { rateLimit } from "@/lib/rate-limit";
 
 export type DurationBucket = "short" | "medium" | "long";
@@ -41,27 +42,12 @@ const SKIP_WITH_REASON_WEIGHT_DELTA = -1.5;
 // (voir INITIAL_WEIGHT dans onboarding.ts), pour rester significatif sans
 // écraser complètement le score appris par tag.
 const FAVORITE_CHANNEL_SCORE_BONUS = 3;
-// Part des propositions qui ignorent complètement le score appris pour
-// piocher parmi les tags les moins explorés — sans ça, le score appris ne
-// fait que renforcer les tags choisis à l'onboarding et l'utilisateur ne
-// découvre jamais de nouvelles catégories. Plus élevée pour un nouveau
-// compte (peu de signal appris, donc plus de découverte), puis se resserre
-// linéairement jusqu'au seuil ci-dessous une fois le goût mieux cerné.
-const EXPLORATION_RATE_NEW = 0.3;
-const EXPLORATION_RATE_ESTABLISHED = 0.12;
-const EXPLORATION_ADAPTIVE_THRESHOLD_SWIPES = 50;
 // Fenêtre utilisée pour le calcul "déjà vu" et le comptage de tags explorés —
 // évite de charger tout l'historique de swipes à chaque appel (voir
 // idx_swipes_user_created). Le poids appris par tag (userTagWeights, jamais
 // purgé) capture déjà le signal à long terme ; cette fenêtre récente sert
 // uniquement à éviter de reproposer une vidéo vue récemment.
 const RECENT_SWIPE_LOOKBACK_DAYS = 60;
-
-function explorationRateFor(totalSwipes: number): number {
-  if (totalSwipes >= EXPLORATION_ADAPTIVE_THRESHOLD_SWIPES) return EXPLORATION_RATE_ESTABLISHED;
-  const progress = totalSwipes / EXPLORATION_ADAPTIVE_THRESHOLD_SWIPES;
-  return EXPLORATION_RATE_NEW + (EXPLORATION_RATE_ESTABLISHED - EXPLORATION_RATE_NEW) * progress;
-}
 
 function startOfToday() {
   const d = new Date();

@@ -3,8 +3,14 @@ import { timingSafeEqual } from "node:crypto";
 import { and, asc, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { moodSearchCursors, videos, swipes, savedVideos } from "@/lib/db/schema";
-import { searchVideos, fetchVideoDetails, parseIsoDuration, type YoutubeVideoItem } from "@/lib/youtube/client";
-import { MOOD_CATEGORIES, YOUTUBE_MUSIC_CATEGORY_ID, type SubCategory } from "@/lib/youtube/moods";
+import {
+  searchVideos,
+  fetchVideoDetails,
+  isVideoSuitable,
+  parseIsoDuration,
+  type YoutubeVideoItem,
+} from "@/lib/youtube/client";
+import { MOOD_CATEGORIES, type SubCategory } from "@/lib/youtube/moods";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 // 50 = maximum autorisé par search.list, et le coût en quota (100 unités) est
@@ -33,8 +39,12 @@ const SEARCH_ORDERS = ["relevance", "date", "viewCount"] as const;
  * à mesure, donc la suivante reprend là où celle-ci s'est arrêtée.
  */
 export const maxDuration = 60;
-// Marge de sécurité sous maxDuration : la phase de découverte s'arrête à ce
-// seuil pour laisser les étapes d'entretien (purges) se terminer proprement.
+// Budgets de temps cumulés depuis le début de l'exécution, répartis sous les
+// 60 s de maxDuration : le rafraîchissement (imposé) s'arrête à 25 s, la
+// découverte (discrétionnaire) à 40 s, et les ~20 s restantes suffisent aux
+// purges finales. Chaque phase reprend là où elle s'est arrêtée à l'exécution
+// suivante, donc une troncature ne perd rien.
+const REFRESH_TIME_BUDGET_MS = 25_000;
 const DISCOVERY_TIME_BUDGET_MS = 40_000;
 // Un skip vieux de plus de 90 jours n'a presque plus d'utilité : le poids
 // appris par tag (userTagWeights) capture déjà le signal, et la fenêtre
@@ -49,9 +59,10 @@ const SKIP_SWIPE_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
 // limite — un garde-fou contre un bug/une boucle d'ingestion, pas une
 // urgence de stockage : une ligne `videos` ne pèse qu'1-2 Ko, donc même
 // 50 000 lignes ne représentent qu'environ 60 Mo sur les 500 Mo du plan
-// gratuit Supabase. Au rythme actuel du cron (~8 recherches/jour), ce seuil
-// est hors de portée avant des années — le catalogue peut donc grossir
-// librement pour offrir plus de choix aux utilisateurs.
+// gratuit Supabase. Au rythme actuel du cron (jusqu'à 42 recherches/jour, soit
+// quelques milliers de vidéos parcourues dont une minorité de nouvelles), ce
+// seuil laisse largement de la marge — le catalogue peut grossir librement
+// pour offrir plus de choix aux utilisateurs.
 const VIDEO_POOL_CAP = 50_000;
 
 async function getCursor(tag: string) {
@@ -86,9 +97,10 @@ async function upsertVideos(items: YoutubeVideoItem[], extraTag?: string, subCat
   const now = new Date();
 
   const rows = items
-    // Le site ne diffuse pas de musique — une recherche non musicale peut
-    // quand même remonter des clips, d'où ce filtre à l'entrée du pool.
-    .filter((item) => item.snippet.categoryId !== YOUTUBE_MUSIC_CATEGORY_ID)
+    // Mêmes critères que la modération manuelle des suggestions : pas de
+    // musique, pas de restriction d'âge, lecture externe autorisée, vidéo
+    // publique, durée exploitable.
+    .filter((item) => isVideoSuitable(item).ok)
     .map((item) => {
       const subTags = detectSubTags(item, subCategories);
       return {
@@ -108,10 +120,7 @@ async function upsertVideos(items: YoutubeVideoItem[], extraTag?: string, subCat
         publishedAt: item.snippet.publishedAt ? new Date(item.snippet.publishedAt) : null,
         lastRefreshedAt: now,
       };
-    })
-    // Une durée nulle signale un direct ou une durée illisible : la carte de
-    // swipe afficherait "0:00" et les filtres de durée n'auraient aucun sens.
-    .filter((row) => row.durationSeconds > 0);
+    });
 
   // Postgres refuse qu'un ON CONFLICT touche deux fois la même ligne dans un
   // même ordre : on dédoublonne le lot avant l'envoi.
@@ -142,10 +151,10 @@ async function upsertVideos(items: YoutubeVideoItem[], extraTag?: string, subCat
  *
  * Budget de quota par exécution : `search.list` coûte 100 unités et le forfait
  * gratuit en donne 10 000/jour. Le job en fait au plus
- * MAX_SEARCH_CALLS_PER_RUN (70 → 7 000 unités), plus des `videos.list` à
+ * MAX_SEARCH_CALLS_PER_RUN (42 → 4 200 unités), plus des `videos.list` à
  * 1 unité pièce pour les métadonnées et le rafraîchissement des vidéos de plus
- * de 30 jours. Il reste donc ~30 % de marge, suffisante pour déclencher une
- * exécution manuelle le même jour sans dépasser le quota.
+ * de 30 jours. Il reste donc plus de la moitié du quota, de quoi déclencher une
+ * exécution manuelle le même jour sans risque de dépassement.
  *
  * Chaque mood enchaîne plusieurs recherches par exécution, en avançant dans sa
  * pagination puis en passant à la formulation suivante une fois les pages
@@ -188,18 +197,36 @@ export async function GET(req: Request) {
 
   let refreshed = 0;
   let purged = 0;
+  let refreshTruncated = false;
   for (const batch of chunk(stale, 50)) {
+    // Sans ce plafond, une vague de vidéos mises en cache le même jour arrive à
+    // péremption simultanément un mois plus tard et cette phase consommerait
+    // seule tout le budget de la fonction, empêchant la découverte de tourner —
+    // voire se ferait couper en plein milieu par Vercel. Ce qui n'est pas
+    // traité ici reste périmé et sera repris à l'exécution suivante.
+    if (Date.now() - startedAt > REFRESH_TIME_BUDGET_MS) {
+      refreshTruncated = true;
+      break;
+    }
+
     try {
       const details = await fetchVideoDetails(batch.map((v) => v.youtubeVideoId));
       videosListCalls++;
-      await upsertVideos(details);
-      refreshed += details.length;
+      refreshed += await upsertVideos(details);
 
       const foundIds = new Set(details.map((d) => d.id));
-      const missingIds = batch.filter((v) => !foundIds.has(v.youtubeVideoId)).map((v) => v.id);
-      if (missingIds.length > 0) {
-        await db.delete(videos).where(inArray(videos.id, missingIds));
-        purged += missingIds.length;
+      // Une vidéo peut avoir disparu de YouTube, ou être devenue inéligible
+      // depuis sa mise en cache (passée en privé, restreinte par l'âge,
+      // intégration désactivée). Dans les deux cas on la retire : la garder
+      // reviendrait à la reproposer indéfiniment sans jamais pouvoir la
+      // rafraîchir, donc à retraiter le même lot à chaque exécution.
+      const unsuitableIds = new Set(details.filter((d) => !isVideoSuitable(d).ok).map((d) => d.id));
+      const toDelete = batch
+        .filter((v) => !foundIds.has(v.youtubeVideoId) || unsuitableIds.has(v.youtubeVideoId))
+        .map((v) => v.id);
+      if (toDelete.length > 0) {
+        await db.delete(videos).where(inArray(videos.id, toDelete));
+        purged += toDelete.length;
       }
     } catch (err) {
       errors.push(`rafraîchissement: ${err instanceof Error ? err.message : "erreur inconnue"}`);
@@ -308,6 +335,10 @@ export async function GET(req: Request) {
     purged,
     skipsPurged,
     videosCapped,
+    // Signale qu'il restait des vidéos périmées à traiter : utile pour repérer
+    // que le budget de temps est devenu trop juste sans avoir à lire les logs.
+    refreshTruncated,
+    staleRemaining: refreshTruncated ? stale.length - refreshed - purged : 0,
     errors,
   });
 }

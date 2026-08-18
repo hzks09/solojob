@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { PROTECTED_ROUTE_PREFIXES } from "@/lib/constants";
 
 const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
@@ -7,7 +8,9 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/api/", "/dashboard", "/onboarding", "/liste", "/settings", "/billing"],
+      // Dérivé de la liste partagée : une route protégée ajoutée au middleware
+      // devient automatiquement non indexable, sans oubli possible.
+      disallow: ["/api/", ...PROTECTED_ROUTE_PREFIXES],
     },
     sitemap: `${appUrl}/sitemap.xml`,
   };

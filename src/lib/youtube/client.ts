@@ -7,6 +7,8 @@
  * d'erreur (même logique de dégradation silencieuse que Resend/Sentry).
  */
 
+import { YOUTUBE_MUSIC_CATEGORY_ID } from "./moods";
+
 const YOUTUBE_API_BASE = "https://www.googleapis.com/youtube/v3";
 
 interface YoutubeThumbnails {
@@ -66,6 +68,39 @@ export function parseYoutubeVideoId(input: string): string | null {
 
   return null;
 }
+
+export type UnsuitableReason = "age_restricted" | "not_embeddable" | "not_public" | "music" | "no_duration";
+
+/**
+ * Critères d'entrée dans le catalogue, partagés par les deux seules portes
+ * d'accès : le job planifié et les suggestions utilisateur. Les avoir en double
+ * laissait passer par le job des vidéos que la modération manuelle refusait
+ * (restriction d'âge notamment) — d'autant plus problématique depuis que le job
+ * ingère des milliers de vidéos par exécution au lieu de quelques dizaines.
+ */
+export function isVideoSuitable(item: YoutubeVideoItem): { ok: true } | { ok: false; reason: UnsuitableReason } {
+  if (item.contentDetails?.contentRating?.ytRating === "ytAgeRestricted") {
+    return { ok: false, reason: "age_restricted" };
+  }
+  if (item.status?.embeddable === false) return { ok: false, reason: "not_embeddable" };
+  if (item.status?.privacyStatus && item.status.privacyStatus !== "public") {
+    return { ok: false, reason: "not_public" };
+  }
+  if (item.snippet.categoryId === YOUTUBE_MUSIC_CATEGORY_ID) return { ok: false, reason: "music" };
+  // Durée nulle = direct ou durée illisible : la carte afficherait "0:00" et
+  // les filtres de durée n'auraient aucun sens.
+  if (parseIsoDuration(item.contentDetails?.duration) === 0) return { ok: false, reason: "no_duration" };
+  return { ok: true };
+}
+
+/** Message destiné à l'utilisateur qui propose une vidéo refusée. */
+export const UNSUITABLE_MESSAGES: Record<UnsuitableReason, string> = {
+  age_restricted: "Cette vidéo est soumise à une restriction d'âge, elle ne peut pas être proposée.",
+  not_embeddable: "Cette vidéo ne peut pas être intégrée (lecture externe désactivée par la chaîne).",
+  not_public: "Cette vidéo n'est pas publique.",
+  music: "Loupick ne propose pas de contenu musical.",
+  no_duration: "Cette vidéo n'a pas de durée exploitable (direct en cours ?).",
+};
 
 /**
  * Convertit une durée ISO 8601 YouTube (ex. "PT4M13S") en secondes. Renvoie 0

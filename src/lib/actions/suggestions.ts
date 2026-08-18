@@ -6,8 +6,14 @@ import { db } from "@/lib/db";
 import { videos, videoSuggestions, type VideoSuggestion } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { rateLimit } from "@/lib/rate-limit";
-import { fetchVideoDetails, parseIsoDuration, parseYoutubeVideoId, type YoutubeVideoItem } from "@/lib/youtube/client";
-import { YOUTUBE_MUSIC_CATEGORY_ID } from "@/lib/youtube/moods";
+import {
+  fetchVideoDetails,
+  isVideoSuitable,
+  parseIsoDuration,
+  parseYoutubeVideoId,
+  UNSUITABLE_MESSAGES,
+  type YoutubeVideoItem,
+} from "@/lib/youtube/client";
 
 const DAILY_SUGGESTION_LIMIT = 5;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -21,23 +27,14 @@ async function requireAdmin() {
 }
 
 /** Vérifie qu'une vidéo est publique et embarquable — rejette avant toute écriture en base sinon. */
+/**
+ * Mêmes critères que le job planifié (voir isVideoSuitable), traduits en
+ * message affichable. Garder une seule source de vérité évite que la
+ * modération manuelle et l'ingestion automatique divergent.
+ */
 function isSuggestable(item: YoutubeVideoItem): { ok: true } | { ok: false; error: string } {
-  if (item.contentDetails?.contentRating?.ytRating === "ytAgeRestricted") {
-    return { ok: false, error: "Cette vidéo est soumise à une restriction d'âge, elle ne peut pas être proposée." };
-  }
-  if (item.status?.embeddable === false) {
-    return { ok: false, error: "Cette vidéo ne peut pas être intégrée (lecture externe désactivée par la chaîne)." };
-  }
-  if (item.status?.privacyStatus && item.status.privacyStatus !== "public") {
-    return { ok: false, error: "Cette vidéo n'est pas publique." };
-  }
-  if (item.snippet.categoryId === YOUTUBE_MUSIC_CATEGORY_ID) {
-    return { ok: false, error: "Loupick ne propose pas de contenu musical." };
-  }
-  if (parseIsoDuration(item.contentDetails?.duration) === 0) {
-    return { ok: false, error: "Cette vidéo n'a pas de durée exploitable (direct en cours ?)." };
-  }
-  return { ok: true };
+  const verdict = isVideoSuitable(item);
+  return verdict.ok ? { ok: true } : { ok: false, error: UNSUITABLE_MESSAGES[verdict.reason] };
 }
 
 export async function submitSuggestionAction(rawInput: string): Promise<SubmitSuggestionResult> {

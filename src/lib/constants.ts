@@ -2,6 +2,22 @@ import type { PlanTier } from "@/lib/db/schema";
 
 export const FREE_PLAN_DAILY_DISCOVERY_LIMIT = 20;
 
+/**
+ * Préfixes des routes réservées aux utilisateurs connectés. Source unique
+ * partagée entre le middleware (qui redirige vers /login) et robots.ts (qui
+ * les exclut de l'indexation) : les deux listes ayant divergé par le passé,
+ * toute nouvelle route sous (app) doit être ajoutée ici et nulle part ailleurs.
+ */
+export const PROTECTED_ROUTE_PREFIXES = [
+  "/dashboard",
+  "/onboarding",
+  "/liste",
+  "/settings",
+  "/billing",
+  "/suggestions",
+  "/admin",
+] as const;
+
 export interface PlanConfig {
   tier: PlanTier;
   name: string;
