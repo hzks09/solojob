@@ -19,6 +19,17 @@ export default function LoginPage() {
   );
 }
 
+/**
+ * Le message dit quoi faire ensuite, pas ce qui a cassé — la raison technique
+ * part dans les logs (voir src/lib/auth/link-failure.ts).
+ */
+function linkErrorMessage(raison: string | null): string {
+  if (raison === "verificateur_absent") {
+    return "Ouvre ce lien depuis l'appareil où tu t'es inscrit, ou demande un nouvel e-mail.";
+  }
+  return "Ce lien a expiré ou a déjà servi. Demande un nouvel e-mail pour continuer.";
+}
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -27,7 +38,7 @@ function LoginForm() {
 
   useEffect(() => {
     if (searchParams.get("error") !== "lien_invalide") return;
-    toast.error("Ce lien n'est plus valide, il a peut-être expiré. Réessaie de te connecter.");
+    toast.error(linkErrorMessage(searchParams.get("raison")));
     router.replace("/login");
   }, [searchParams, router]);
 
