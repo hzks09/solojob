@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="Loupick">
+  <defs>
+    <radialGradient id="bg" cx="34%" cy="26%" r="88%">
+      <stop offset="0%" stop-color="#ff2440"/>
+      <stop offset="58%" stop-color="#dc1030"/>
+      <stop offset="100%" stop-color="#a80c24"/>
+    </radialGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <g transform="translate(12 24)" fill="none" stroke="#f6f5f3" stroke-width="84" stroke-linecap="round">
+    <line x1="655" y1="641" x2="806" y2="792"/>
+    <circle cx="466" cy="452" r="268"/>
+  </g>
+  <path transform="translate(12 24)" d="M405 340 L619 452 L405 564 Z" fill="#f6f5f3" stroke="#f6f5f3" stroke-width="34" stroke-linejoin="round"/>
+</svg>

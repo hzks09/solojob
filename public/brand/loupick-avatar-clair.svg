@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="Loupick">
+  <rect width="1024" height="1024" fill="#f6f5f3"/>
+  <g transform="translate(12 24)" fill="none" stroke="#0c0c0e" stroke-width="84" stroke-linecap="round">
+    <line x1="655" y1="641" x2="806" y2="792"/>
+    <circle cx="466" cy="452" r="268"/>
+  </g>
+  <path transform="translate(12 24)" d="M405 340 L619 452 L405 564 Z" fill="#dc1030" stroke="#dc1030" stroke-width="34" stroke-linejoin="round"/>
+</svg>
