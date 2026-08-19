@@ -116,6 +116,19 @@ describe("isVideoSuitable", () => {
     expect(isVideoSuitable(videoItem())).toEqual({ ok: false, reason: "no_duration" });
   });
 
+  it("refuse un Short, à l'ancienne durée comme à la nouvelle", () => {
+    // 60 s : format d'origine. 180 s : plafond depuis octobre 2024 — un seuil
+    // à 60 s laisserait repasser tout ce qui a été publié depuis.
+    expect(isVideoSuitable(videoItem({ duration: "PT45S" }))).toEqual({ ok: false, reason: "short" });
+    expect(isVideoSuitable(videoItem({ duration: "PT1M" }))).toEqual({ ok: false, reason: "short" });
+    expect(isVideoSuitable(videoItem({ duration: "PT2M30S" }))).toEqual({ ok: false, reason: "short" });
+    expect(isVideoSuitable(videoItem({ duration: "PT3M" }))).toEqual({ ok: false, reason: "short" });
+  });
+
+  it("accepte juste au-dessus du seuil", () => {
+    expect(isVideoSuitable(videoItem({ duration: "PT3M1S" }))).toEqual({ ok: true });
+  });
+
   it("tolère l'absence du bloc status, que l'API n'envoie pas toujours", () => {
     expect(isVideoSuitable(videoItem({ ...OK, omitStatus: true }))).toEqual({ ok: true });
   });

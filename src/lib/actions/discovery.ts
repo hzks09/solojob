@@ -1,6 +1,6 @@
 "use server";
 
-import { and, arrayOverlaps, eq, gt, gte, ilike, inArray, lt, lte, notInArray, sql } from "drizzle-orm";
+import { and, arrayOverlaps, eq, gt, gte, ilike, inArray, lt, lte, notInArray, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   videos,
@@ -15,11 +15,12 @@ import { getCurrentUser } from "@/lib/auth/current-user";
 import { PLANS } from "@/lib/constants";
 import { explorationRateFor } from "@/lib/discovery-scoring";
 import { rateLimit } from "@/lib/rate-limit";
+import { SHORTS_MAX_SECONDS } from "@/lib/youtube/client";
 
 export type DurationBucket = "short" | "medium" | "long";
 
 export interface DiscoveryFilters {
-  /** Filtre avancé (forfait payant) : < 4 min / 4-20 min / > 20 min. */
+  /** Filtre avancé (forfait payant) : 3-4 min / 4-20 min / > 20 min — rien en dessous de SHORTS_MAX_SECONDS. */
   durationBucket?: DurationBucket;
   /** Filtre avancé (forfait payant), basé sur `videos.language`. */
   language?: string;
@@ -140,7 +141,11 @@ export async function getNextVideoAction(filters?: DiscoveryFilters, excludeVide
     return { status: "empty" };
   }
 
-  const conditions = [];
+  // Aucun Short, quels que soient les filtres choisis. Le critère d'entrée
+  // (isVideoSuitable) empêche déjà les nouveaux d'entrer et fait purger les
+  // anciens au fil du rafraîchissement, mais ce cycle dure 30 jours : sans ce
+  // filtre-ci, on continuerait d'en croiser en swipant pendant tout ce temps.
+  const conditions: (SQL<unknown> | undefined)[] = [gt(videos.durationSeconds, SHORTS_MAX_SECONDS)];
   if (excludeIds.length) conditions.push(notInArray(videos.id, excludeIds));
   if (filters?.durationBucket === "short") conditions.push(lt(videos.durationSeconds, 240));
   else if (filters?.durationBucket === "medium") {

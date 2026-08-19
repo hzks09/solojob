@@ -7,8 +7,10 @@ import { MOOD_CATEGORIES } from "@/lib/youtube/moods";
 import { cn } from "@/lib/utils";
 import type { DiscoveryFilters, DurationBucket } from "@/lib/actions/discovery";
 
+// « 3-4 min » et non « < 4 min » : les vidéos de moins de 3 minutes ne sont
+// plus proposées du tout (seuil Shorts, voir SHORTS_MAX_SECONDS).
 const DURATION_OPTIONS: { value: DurationBucket; label: string }[] = [
-  { value: "short", label: "< 4 min" },
+  { value: "short", label: "3-4 min" },
   { value: "medium", label: "4-20 min" },
   { value: "long", label: "> 20 min" },
 ];

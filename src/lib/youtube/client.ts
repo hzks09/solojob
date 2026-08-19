@@ -69,7 +69,26 @@ export function parseYoutubeVideoId(input: string): string | null {
   return null;
 }
 
-export type UnsuitableReason = "age_restricted" | "not_embeddable" | "not_public" | "music" | "no_duration";
+export type UnsuitableReason =
+  | "age_restricted"
+  | "not_embeddable"
+  | "not_public"
+  | "music"
+  | "no_duration"
+  | "short";
+
+/**
+ * Durée maximale d'un Short YouTube, et donc seuil d'exclusion du pool.
+ *
+ * L'API ne dit nulle part qu'une vidéo est un Short : ni champ dédié, ni
+ * format d'image exploitable. La durée est le seul signal fiable — un Short
+ * ne peut pas dépasser 3 minutes (60 s avant octobre 2024).
+ *
+ * Conséquence assumée : une vraie vidéo de 2 minutes est écartée elle aussi.
+ * C'est le prix d'une garantie stricte « aucun Short » ; baisser ce seuil à 60
+ * laisserait repasser tous les Shorts au format long.
+ */
+export const SHORTS_MAX_SECONDS = 180;
 
 /**
  * Critères d'entrée dans le catalogue, partagés par les deux seules portes
@@ -89,7 +108,12 @@ export function isVideoSuitable(item: YoutubeVideoItem): { ok: true } | { ok: fa
   if (item.snippet.categoryId === YOUTUBE_MUSIC_CATEGORY_ID) return { ok: false, reason: "music" };
   // Durée nulle = direct ou durée illisible : la carte afficherait "0:00" et
   // les filtres de durée n'auraient aucun sens.
-  if (parseIsoDuration(item.contentDetails?.duration) === 0) return { ok: false, reason: "no_duration" };
+  const durationSeconds = parseIsoDuration(item.contentDetails?.duration);
+  if (durationSeconds === 0) return { ok: false, reason: "no_duration" };
+  // Le job de rafraîchissement repasse ce test sur tout le pool : ajouter ce
+  // critère ici suffit à faire purger les Shorts déjà en cache, sans script
+  // de migration dédié.
+  if (durationSeconds <= SHORTS_MAX_SECONDS) return { ok: false, reason: "short" };
   return { ok: true };
 }
 
@@ -100,6 +124,7 @@ export const UNSUITABLE_MESSAGES: Record<UnsuitableReason, string> = {
   not_public: "Cette vidéo n'est pas publique.",
   music: "Loupick ne propose pas de contenu musical.",
   no_duration: "Cette vidéo n'a pas de durée exploitable (direct en cours ?).",
+  short: "Loupick ne propose pas de Shorts — il faut au moins 3 minutes.",
 };
 
 /**
