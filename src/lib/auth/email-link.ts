@@ -22,15 +22,22 @@ export function parseEmailLinkType(raw: string | null | undefined): EmailLinkTyp
 }
 
 /**
- * Destination après vérification du lien. Un lien de réinitialisation doit
- * atterrir sur le formulaire de nouveau mot de passe même quand l'e-mail ne
- * porte pas de `next` — sinon l'utilisateur arrive connecté sur le dashboard
- * sans jamais avoir choisi son mot de passe.
+ * Destination après vérification du lien, quand l'e-mail ne porte pas de
+ * `next` :
+ * - `recovery` doit atterrir sur le formulaire de nouveau mot de passe, sinon
+ *   l'utilisateur arrive connecté sans jamais avoir choisi son mot de passe ;
+ * - `email_change` doit revenir sur le profil, d'où le changement a été
+ *   demandé, pour que la nouvelle adresse s'affiche.
  */
+const DEFAULT_DESTINATIONS: Partial<Record<EmailLinkType, string>> = {
+  recovery: "/reset-password",
+  email_change: "/settings",
+};
+
 export function destinationForType(
   type: EmailLinkType | null,
   next: string | null | undefined
 ): string {
-  if (type === "recovery") return safeRedirectPath(next, "/reset-password");
-  return safeRedirectPath(next);
+  const fallback = type ? DEFAULT_DESTINATIONS[type] : undefined;
+  return fallback ? safeRedirectPath(next, fallback) : safeRedirectPath(next);
 }

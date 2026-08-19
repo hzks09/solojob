@@ -21,6 +21,10 @@ describe("destinationForType", () => {
     expect(destinationForType("recovery", null)).toBe("/reset-password");
   });
 
+  it("envoie un changement d'adresse sur le profil même sans `next`", () => {
+    expect(destinationForType("email_change", null)).toBe("/settings");
+  });
+
   it("envoie une confirmation d'inscription sur le dashboard par défaut", () => {
     expect(destinationForType("signup", null)).toBe("/dashboard");
   });

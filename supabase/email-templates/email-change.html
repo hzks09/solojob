@@ -1,0 +1,93 @@
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f6f5f3;margin:0;padding:0;">
+  <tr>
+    <td align="center" style="padding:32px 16px;">
+
+      <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:560px;background-color:#ffffff;border:1px solid #e4e2df;border-radius:18px;overflow:hidden;font-family:-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;">
+
+        <!-- Bandeau sombre : le logo a lui-même un fond noir, il s'y fond sans bord visible -->
+        <tr>
+          <td style="background-color:#0c0c0e;padding:22px 28px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="padding-right:12px;" valign="middle">
+                  <img src="{{ .SiteURL }}/brand/png/loupick-avatar-noir-128.png" width="44" height="44" alt="" style="display:block;border:0;border-radius:12px;">
+                </td>
+                <td valign="middle">
+                  <span style="color:#f6f5f3;font-size:19px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;">Loupick</span>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Filet rouge -->
+        <tr><td style="height:4px;background-color:#dc1030;font-size:0;line-height:0;">&nbsp;</td></tr>
+
+        <tr>
+          <td style="padding:36px 32px 8px 32px;">
+            <h1 style="margin:0 0 14px 0;color:#0c0c0e;font-size:26px;line-height:1.2;font-weight:700;letter-spacing:-0.02em;">Confirme ta nouvelle adresse</h1>
+            <p style="margin:0;color:#4a494e;font-size:16px;line-height:1.6;">Ton compte Loupick va passer à une nouvelle adresse e-mail. Confirme le changement pour l'activer.</p>
+          </td>
+        </tr>
+
+        <!-- Ancienne et nouvelle adresse, côte à côte : cet e-mail part aux deux -->
+        <tr>
+          <td style="padding:24px 32px 0 32px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f6f5f3;border-radius:12px;">
+              <tr>
+                <td style="padding:16px 18px;">
+                  <p style="margin:0 0 4px 0;color:#98979c;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;">Adresse actuelle</p>
+                  <p style="margin:0 0 14px 0;color:#6b6a6f;font-size:14.5px;text-decoration:line-through;">{{ .Email }}</p>
+                  <p style="margin:0 0 4px 0;color:#98979c;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;">Nouvelle adresse</p>
+                  <p style="margin:0;color:#0c0c0e;font-size:15px;font-weight:700;">{{ .NewEmail }}</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:26px 32px 32px 32px;">
+            <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email_change&next=/settings"
+               style="display:inline-block;background-color:#dc1030;color:#ffffff;font-size:16px;font-weight:700;text-decoration:none;padding:15px 30px;border-radius:10px;">
+              Confirmer le changement
+            </a>
+          </td>
+        </tr>
+
+        <!-- Encadré discret : la double confirmation, en marge du flux principal -->
+        <tr>
+          <td style="padding:0 32px 28px 32px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="border-left:3px solid #e4e2df;padding:2px 0 2px 14px;color:#6b6a6f;font-size:13.5px;line-height:1.55;">
+                  Ce message part sur <strong style="color:#0c0c0e;">les deux adresses</strong> : le changement ne prend effet qu'une fois les deux liens ouverts.
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <tr><td style="border-top:1px solid #e4e2df;font-size:0;line-height:0;">&nbsp;</td></tr>
+
+        <tr>
+          <td style="padding:22px 32px 28px 32px;">
+            <p style="margin:0 0 14px 0;color:#6b6a6f;font-size:12.5px;line-height:1.6;">
+              Le bouton ne répond pas ? Copie ce lien dans ton navigateur :<br>
+              <span style="color:#8a0e22;word-break:break-all;">{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email_change&next=/settings</span>
+            </p>
+            <p style="margin:0;color:#98979c;font-size:12.5px;line-height:1.6;">
+              Tu n'es pas à l'origine de cette demande ? Ignore cet e-mail : ton adresse reste inchangée.
+            </p>
+          </td>
+        </tr>
+
+      </table>
+
+      <p style="margin:20px 0 0 0;color:#98979c;font-size:12px;font-family:-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;">
+        Loupick — trouve la vidéo, pas le scroll.
+      </p>
+
+    </td>
+  </tr>
+</table>
